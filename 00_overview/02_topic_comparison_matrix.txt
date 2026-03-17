@@ -1,0 +1,137 @@
+================================================================================
+         PHD TOPIC COMPARISON MATRIX — DECISION FRAMEWORK
+================================================================================
+
+Scoring: 1 (Low) — 2 (Medium) — 3 (High)
+
+================================================================================
+CRITERIA DEFINITIONS
+================================================================================
+
+1. DATA ACCESS
+   Can you realistically obtain the data needed, given your position at BdF?
+   3 = Readily available (BdF internal + public sources)
+   2 = Partially available (some require partnerships or purchases)
+   1 = Difficult (costly, restricted, or experimental data sources)
+
+2. FEASIBILITY (3-4 year PhD)
+   Can this be completed within a standard PhD timeline?
+   3 = Builds directly on current work, low learning curve
+   2 = Requires moderate new skill acquisition
+   1 = Ambitious scope, high risk of overrun
+
+3. NOVELTY / PUBLICATION POTENTIAL
+   How likely is this to produce publishable papers in top-tier journals?
+   3 = Clear gap in literature, frontier methodology
+   2 = Solid contribution but competitive field
+   1 = Incremental, risk of being scooped
+
+4. CAREER ALIGNMENT
+   Does this strengthen your position at BdF / ECB / central banking?
+   3 = Directly relevant to BdF strategic priorities
+   2 = Relevant to broader central banking
+   1 = More academic/private-sector oriented
+
+5. SKILL LEVERAGE
+   How much does this build on your existing AI + econometrics expertise?
+   3 = Core skills directly applicable
+   2 = Partial overlap, moderate upskilling needed
+   1 = Requires substantially new skill set
+
+6. SUPERVISOR AVAILABILITY
+   Are there known academics working at the intersection of this topic?
+   3 = Many potential supervisors in France/Europe
+   2 = Some supervisors, may need to search broadly
+   1 = Niche area, few potential supervisors
+
+================================================================================
+SCORING MATRIX
+================================================================================
+
++-----+------------------------------------+------+------+-------+--------+-------+-------+-------+
+| #   | TOPIC                              | DATA | FEAS | NOVEL | CAREER | SKILL | SUPER | TOTAL |
++-----+------------------------------------+------+------+-------+--------+-------+-------+-------+
+|  1  | AI Nowcasting/Backcasting of BoP   |  3   |  3   |   3   |   3    |   3   |   2   |  17   |
+|  2  | Digital Currencies & BoP           |  1   |  2   |   2   |   3    |   2   |   2   |  12   |
+|  3  | Trade Policy & Supply Chains       |  2   |  2   |   2   |   2    |   2   |   3   |  13   |
+|  4  | Climate Change & BoP               |  2   |  2   |   2   |   3    |   2   |   3   |  14   |
+|  5  | Heterogeneous Agent Models         |  2   |  1   |   3   |   2    |   1   |   2   |  11   |
+|  6  | ML for Structural Breaks in BoP    |  3   |  3   |   2   |   2    |   3   |   2   |  15   |
++-----+------------------------------------+------+------+-------+--------+-------+-------+-------+
+
+================================================================================
+RANKING & ANALYSIS
+================================================================================
+
+RANK 1 — Topic 1: AI Nowcasting/Backcasting of BoP (17/18)
+   ✅ Strongest overall. Builds directly on your daily work.
+   ✅ High novelty: AI applied to BoP specifically is underexplored.
+   ✅ Full data access via BdF internal BoP datasets.
+   ⚠️  Supervisor search may require looking beyond pure economists
+       (need someone comfortable with ML + macro).
+   → RECOMMENDED AS PRIMARY TOPIC.
+
+RANK 2 — Topic 6: ML for Structural Breaks in BoP (15/18)
+   ✅ Natural complement to Topic 1 (could be a thesis chapter).
+   ✅ Leverages your backcasting experience directly.
+   ✅ Strong feasibility — change-point detection is well-established.
+   ⚠️  Slightly lower novelty — structural break detection is mature in
+       statistics; the BoP application angle needs clear differentiation.
+   → STRONG FALLBACK. Could also be integrated as Chapter 1 of Topic 1.
+
+RANK 3 — Topic 4: Climate Change & BoP (14/18)
+   ✅ Extremely high policy relevance (NGFS, ECB climate stress tests).
+   ✅ Good supervisor availability (climate-finance is booming).
+   ⚠️  Data on climate-trade linkages is still developing.
+   ⚠️  Requires building new domain expertise in environmental economics.
+   → VIABLE ALTERNATIVE if you want maximum policy impact.
+
+RANK 4 — Topic 3: Trade Policy & Supply Chains (13/18)
+   ✅ Timely (post-COVID, geopolitical fragmentation).
+   ✅ Strong supervisor pool (trade economists are plentiful).
+   ⚠️  Competitive field — many researchers working on this post-2020.
+   ⚠️  Less directly tied to your specific BoP/backcasting expertise.
+   → GOOD TOPIC but less differentiated.
+
+RANK 5 — Topic 2: Digital Currencies & BoP (12/18)
+   ⚠️  Data is the main bottleneck — CBDC adoption is too early for
+       robust empirical work (only China has meaningful data).
+   ⚠️  Risk of the topic becoming outdated or overly speculative.
+   ✅ High career alignment if BdF deepens its digital euro work.
+   → HIGH RISK / HIGH REWARD. Better suited for post-PhD research.
+
+RANK 6 — Topic 5: Heterogeneous Agent Models (11/18)
+   ⚠️  Steep learning curve (computational macro, Julia/Fortran).
+   ⚠️  Furthest from your current skill set.
+   ⚠️  Agent-based modeling for BoP is very niche — publication risk.
+   ✅ High novelty if executed well.
+   → MOST AMBITIOUS. Only pursue if you have strong computational
+       inclinations and find a top supervisor in this space.
+
+================================================================================
+DECISION
+================================================================================
+
+RECOMMENDED: Topic 1 (AI Nowcasting/Backcasting of BoP)
+   - Highest score across all dimensions
+   - Lowest risk, highest alignment with your profile
+   - Can potentially absorb elements of Topic 6 (structural breaks)
+     as a thesis chapter
+
+BACKUP: Topic 4 (Climate & BoP) or Topic 6 (Structural Breaks)
+
+================================================================================
+NOTES
+================================================================================
+
+- These scores reflect YOUR specific profile (BdF, BoP department, AI +
+  econometrics background). A different candidate might score differently.
+- Discuss this matrix with potential supervisors — their interest and
+  expertise may shift the ranking.
+- The scores for "Supervisor Availability" are estimates. Do targeted
+  searches on Google Scholar, IDEAS/RePEc, and university faculty pages
+  to validate.
+- Consider whether Topics 1 and 6 could be merged into a single thesis
+  with complementary chapters.
+
+================================================================================

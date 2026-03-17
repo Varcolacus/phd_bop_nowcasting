@@ -1,0 +1,538 @@
+================================================================================
+   PHD THESIS OUTLINE — 3-CHAPTER STRUCTURE
+   AI-Enhanced Nowcasting and Backcasting of Balance of Payments
+================================================================================
+
+Working Title:
+"Artificial Intelligence for Balance of Payments Estimation:
+ Nowcasting, Alternative Data, and Policy Implications"
+
+================================================================================
+THESIS OVERVIEW
+================================================================================
+
+Core contribution: This thesis develops and evaluates AI-driven methods
+to improve the timeliness and accuracy of France's Balance of Payments
+(BoP) estimates. It makes three distinct contributions organized as
+independent but connected essays (chapters), each targeting publication
+in a peer-reviewed journal.
+
+Unifying thread: Each chapter addresses a different dimension of the
+same problem — Chapter 1 asks "which models?", Chapter 2 asks "which
+data?", and Chapter 3 asks "so what for policy?"
+
+Thesis format: THESIS BY ARTICLES ("thèse sur articles")
+   Each chapter = one standalone peer-reviewed paper.
+   The thesis wraps them with a general introduction (~25 pages)
+   and a general conclusion (~15 pages).
+
+================================================================================
+PUBLICATION STRATEGY
+================================================================================
+
+Overview:
+   This PhD follows the "thesis by articles" format. Each chapter is
+   written as an independent, self-contained paper targeting a specific
+   peer-reviewed journal. Papers are submitted progressively during
+   the PhD, so that by the defense date you have a strong publication
+   record — not just a thesis on a shelf.
+
+Minimum requirements for defense (typical in France):
+   • At least 1 paper published or accepted in a peer-reviewed journal
+   • At least 1 paper under review (Revise & Resubmit counts)
+   • At least 1 paper in working paper form (circulated, presented)
+   → Check your specific doctoral school's rules (e.g., ED Économie
+     Panthéon-Sorbonne, ED TSE, ED CREST — requirements vary).
+
+Publication targets per chapter:
+
+   ┌──────────┬────────────────────────────────┬──────────────────────┐
+   │ Chapter  │ Target journals (ranked)       │ Status at defense    │
+   ├──────────┼────────────────────────────────┼──────────────────────┤
+   │    1     │ 1st: Int. J. of Forecasting    │ Published/Accepted   │
+   │          │ 2nd: J. Int. Money & Finance   │                      │
+   │          │ 3rd: J. Applied Econometrics   │                      │
+   ├──────────┼────────────────────────────────┼──────────────────────┤
+   │    2     │ 1st: J. Business & Econ. Stat. │ Under review / R&R   │
+   │          │ 2nd: J. Applied Econometrics   │                      │
+   │          │ 3rd: J. Financial Econometrics │                      │
+   ├──────────┼────────────────────────────────┼──────────────────────┤
+   │    3     │ 1st: European Economic Review  │ Working paper        │
+   │          │ 2nd: J. Monetary Economics     │ (submitted ideally)  │
+   │          │ 3rd: J. Int. Economics         │                      │
+   └──────────┴────────────────────────────────┴──────────────────────┘
+
+   Fallback / complementary outlets:
+   • BdF Working Paper series (good visibility, no peer review)
+   • ECB Working Paper series (if co-authored with ECB staff)
+   • NBER / CEPR Discussion Papers (if affiliated)
+   • BIS Working Papers (strong central bank audience)
+
+Submission workflow per paper:
+
+   STEP 1 — Working paper (Month N):
+      • Circulate as BdF Working Paper or on SSRN/arXiv
+      • Present at internal BdF seminar for early feedback
+      • Goal: get the paper "out there" and establish priority
+
+   STEP 2 — Conference presentations (Month N to N+3):
+      • Present at 2–3 conferences before journal submission
+      • Target conferences:
+        - IAAE Annual Conference (applied econometrics)
+        - EEA-ESEM Annual Congress (broad European audience)
+        - SNDE Symposium (nonlinear dynamics & econometrics)
+        - CFE-CMStatistics (computational/financial econometrics)
+        - Banque de France / ECB research workshops
+      • Use conference feedback to improve the paper
+
+   STEP 3 — Journal submission (Month N+3):
+      • Submit to 1st-choice journal
+      • Typical review timeline: 3–6 months for first decision
+      • If desk-rejected: resubmit to 2nd-choice within 2 weeks
+
+   STEP 4 — Revise & Resubmit (Month N+6 to N+9):
+      • If R&R received: revise within 2–3 months
+      • Prepare a detailed response letter to referees
+      • Resubmit revised version
+
+   STEP 5 — Acceptance or pivot (Month N+9 to N+12):
+      • If accepted: done ✅
+      • If rejected: pivot to next journal on the list
+      • Budget ~12–18 months total per paper from first submission
+        to acceptance (this is normal in economics)
+
+Co-authorship strategy:
+   • Chapter 1: Consider co-authoring with your PhD supervisor
+     (common practice, accelerates review process)
+   • Chapter 2: Potential co-authorship with a data science colleague
+     at BdF (NLP/satellite data expertise)
+   • Chapter 3: Could involve an ECB co-author for cross-country
+     credibility and data access
+   ⚠️ Check doctoral school rules on co-authored chapters.
+     Most French programs accept them but require a statement
+     clarifying your personal contribution.
+
+================================================================================
+CHAPTER 1 — AI vs. Econometrics for BoP Nowcasting: A Horse Race
+================================================================================
+
+Research Question:
+   Can machine learning models improve the accuracy of real-time BoP
+   component estimation compared to standard econometric benchmarks?
+
+Contribution:
+   First systematic comparison of ML and econometric approaches
+   specifically for BoP nowcasting. Existing literature focuses on GDP
+   nowcasting (Bańbura et al., 2013; Bok et al., 2018) — this chapter
+   fills the gap for external sector statistics.
+
+Methodology (focused, not exhaustive):
+   - BASELINES (what to beat):
+     • Bridge equations (standard BdF/ECB approach)
+     • Mixed-frequency VAR (MF-VAR) following Schorfheide & Song (2015)
+     • Dynamic Factor Model (DFM) following Giannone et al. (2008)
+
+   - ML MODELS (candidates):
+     • Gradient boosting (XGBoost) — strong tabular data performer
+     • LSTM network — captures temporal dependencies
+     • Temporal Fusion Transformer (TFT) — interpretable attention-based
+       architecture, state-of-the-art for time series (Lim et al., 2021)
+
+   - HYBRID APPROACH:
+     • Constrained neural network enforcing BoP accounting identity
+       (CA + KA + FA + EO = 0) as a loss function penalty
+
+   - EVALUATION:
+     • Pseudo real-time out-of-sample exercise (expanding window)
+     • Metrics: RMSE, MAE, direction accuracy
+     • Diebold-Mariano test for statistical significance of forecast
+       differences
+     • Robustness: performance during crisis vs. calm periods
+       (GFC 2008, COVID 2020, Energy shock 2022)
+
+Data:
+   - Monthly/quarterly BoP components (BdF, Eurostat, IMF)
+   - Standard macro indicators: GDP, industrial production, PMI,
+     exchange rates, interest rates (ECB, OECD)
+   - NO alternative data in this chapter (isolated methodological test)
+
+Target journal: Journal of International Money and Finance, or
+               International Journal of Forecasting
+
+Estimated timeline: Months 1–14
+
+Key references to anchor against:
+   - Bańbura, M., Giannone, D., & Reichlin, L. (2010). "Large
+     Bayesian VARs." Journal of Applied Econometrics.
+   - Bok, B., et al. (2018). "Macroeconomic Nowcasting and Forecasting
+     with Big Data." Annual Review of Economics.
+   - Babii, A., Ghysels, E., & Striaukas, J. (2022). "Machine Learning
+     Time Series Regressions with an Application to Nowcasting."
+     Journal of Business & Economic Statistics.
+   - Lim, B., et al. (2021). "Temporal Fusion Transformers for
+     Interpretable Multi-horizon Time Series Forecasting."
+     International Journal of Forecasting.
+
+Overfitting mitigation (critical for low-frequency BoP data):
+   - Expanding window cross-validation (never look ahead)
+   - Early stopping + dropout for neural networks
+   - Feature selection via LASSO before feeding into ML models
+   - Pre-training on multi-country BoP data, fine-tuning on France
+     (transfer learning to increase effective sample size)
+
+================================================================================
+CHAPTER 2 — The Value of Alternative Data for BoP Estimation
+================================================================================
+
+Research Question:
+   Which types of high-frequency and alternative data sources provide
+   the most incremental value for BoP nowcasting beyond traditional
+   macro indicators?
+
+Contribution:
+   Quantifies the marginal information content of non-traditional data
+   sources for external sector estimation. Answers a practical question
+   for central banks: is it worth investing in alternative data
+   infrastructure for BoP monitoring?
+
+Methodology:
+   - Take the BEST-PERFORMING model from Chapter 1 as the base
+   - Incrementally add alternative data categories and measure
+     forecast improvement via:
+     • Relative RMSE reduction
+     • Giacomini-White conditional predictive ability test
+     • SHAP values to quantify each data source's contribution
+
+   - ALTERNATIVE DATA CATEGORIES (test each separately, then combined):
+
+     Category A — Trade-activity proxies (FEASIBLE):
+       • Baltic Dry Index (public, daily)
+       • Container throughput indices (RWI/ISL, monthly)
+       • AIS vessel tracking data (MarineTraffic — confirm BdF access)
+
+     Category B — Financial-flow proxies (FEASIBLE):
+       • Daily exchange rate volatility (ECB, public)
+       • CDS spreads, sovereign bond yields (Refinitiv — BdF has access)
+       • EPFR fund flow data (may require subscription)
+
+     Category C — Text/sentiment data (FEASIBLE with effort):
+       • NLP-derived sentiment from ECB/BdF communications
+         (use FinBERT, pre-trained for financial text)
+       • Trade policy uncertainty index (Caldara & Iacoviello)
+       • Google Trends for trade-related keywords
+
+     Category D — Satellite/geospatial data (ASPIRATIONAL):
+       • Nighttime light intensity (World Bank, open)
+       • Port congestion indices (if accessible)
+       ⚠️ Only include if data access is confirmed by Month 6.
+          Otherwise, drop this category and note it as future work.
+
+   - EXPERIMENTAL DESIGN:
+     • Structured ablation study: Base model → +A → +B → +C → +D
+     • Test whether data fusion (all categories combined) outperforms
+       individual additions
+     • Assess data timeliness: does daily data help more than weekly?
+
+Data access validation (DO THIS BEFORE STARTING):
+   ┌──────────────────────────┬───────────┬─────────────────────────┐
+   │ Data source              │ Status    │ Action needed           │
+   ├──────────────────────────┼───────────┼─────────────────────────┤
+   │ Baltic Dry Index         │ ✅ Public  │ None                    │
+   │ Container throughput     │ ✅ Public  │ Register with RWI/ISL   │
+   │ ECB exchange rates       │ ✅ Public  │ None                    │
+   │ Refinitiv/Bloomberg      │ ❓ Check  │ Confirm BdF terminal    │
+   │ EPFR fund flows          │ ❓ Check  │ Ask BdF data team       │
+   │ Google Trends            │ ✅ Public  │ None                    │
+   │ Trade policy uncertainty │ ✅ Public  │ Download from authors   │
+   │ AIS vessel tracking      │ ❓ Check  │ Contact MarineTraffic   │
+   │ Satellite imagery        │ ❓ Check  │ Check open sources      │
+   └──────────────────────────┴───────────┴─────────────────────────┘
+
+Target journal: Journal of Applied Econometrics, or
+               Journal of Business & Economic Statistics
+
+Estimated timeline: Months 12–26
+
+Key references:
+   - Ardia, D., Bluteau, K., & Boudt, K. (2019). "Questioning the
+     News About Economic Growth." Journal of Financial Econometrics.
+   - Aprigliano, V., Ardizzi, G., & Monteforte, L. (2019). "Using
+     Payment System Data to Forecast the Italian GDP."
+     International Journal of Central Banking.
+   - Woloszko, N. (2020). "Tracking Activity in Real Time with Google
+     Trends." OECD Economics Department Working Papers.
+   - Jha, S., et al. (2024). "Satellite-Based Monitoring of Economic
+     Activity." (check recent BIS/IMF working papers).
+
+================================================================================
+CHAPTER 3 — Policy Implications: Do Better BoP Estimates Matter?
+================================================================================
+
+Research Question:
+   Does improving BoP nowcasting accuracy lead to materially different
+   policy conclusions for monetary and trade policy decisions?
+
+Contribution:
+   Bridges the gap between statistical accuracy and policy relevance.
+   Shows whether the ML gains from Chapters 1-2 are economically
+   meaningful — not just statistically significant.
+
+Methodology:
+   - PART A — Policy-relevant forecast evaluation:
+     • Compare policy signals from AI-enhanced vs. traditional BoP
+       estimates during key episodes:
+       - 2008 GFC (sudden stop in capital flows)
+       - 2015 migration crisis (remittance flows)
+       - 2020 COVID (trade collapse)
+       - 2022 energy shock (current account deterioration)
+     • Measure: Would the AI model have flagged the deterioration
+       earlier? By how many weeks/months?
+     • Compute "policy-relevant loss functions" following Granger &
+       Pesaran (2000): asymmetric loss where missing a large negative
+       shock is costlier than missing a small positive one.
+
+   - PART B — Cross-country generalizability:
+     • Apply the best model from Chapters 1-2 to Germany, Italy,
+       Spain (Eurozone core/periphery comparison)
+     • Test transfer learning: train on France, fine-tune on others
+     • Assess: Do AI models generalize, or are they country-specific?
+
+   - PART C — Counterfactual policy exercise:
+     • Feed improved BoP estimates into a simple policy reaction
+       function (e.g., Taylor-type rule augmented with external
+       balance indicators)
+     • Simulate: Would ECB decisions have differed with better
+       real-time external sector data?
+     • This is illustrative, not causal — clearly state limitations.
+
+Data:
+   - Same as Chapters 1-2, extended to Germany, Italy, Spain
+   - ECB monetary policy decisions timeline (public)
+   - Trade policy event database
+
+Target journal: European Economic Review, or
+               Journal of Monetary Economics
+
+Estimated timeline: Months 22–38
+
+Key references:
+   - Ghysels, E. & Ozkan, N. (2015). "Real-Time Forecasting of the
+     US Federal Budget." Journal of Economic Dynamics and Control.
+   - Granger, C. & Pesaran, M.H. (2000). "Economic and Statistical
+     Measures of Forecast Accuracy." Journal of Forecasting.
+   - Ca' Zorzi, M., et al. (2020). "Making Macroeconomic Forecasts
+     More Useful." ECB Working Paper.
+
+================================================================================
+TIMELINE (42-month PhD) — WITH PUBLICATION MILESTONES
+================================================================================
+
+★ = Publication milestone    ◆ = Presentation    ● = Research milestone
+
+─── YEAR 1 (Months 1–12): FOUNDATIONS + CHAPTER 1 ─────────────────────
+
+   Months 1–3:
+   ● Literature review (read 50+ papers, write 20-page survey)
+   ● Data collection & cleaning (BdF BoP data, macro indicators)
+   ● Set up computing environment (Python, GPU access)
+   ◆ Month 3: Present research proposal at doctoral school seminar
+
+   Months 3–6:
+   ● Coursework (if required — advanced econometrics, ML)
+   ● Chapter 1: implement baseline models (bridge, MF-VAR, DFM)
+
+   Months 6–10:
+   ● Chapter 1: implement ML models (XGBoost, LSTM, TFT)
+   ● Chapter 1: run pseudo real-time evaluation exercise
+   ● Chapter 1: robustness checks (crisis periods, DM tests)
+
+   Months 10–12:
+   ● Chapter 1: write first complete draft
+   ◆ Month 11: Present at BdF internal research seminar
+   ★ Month 12: Circulate as BdF/SSRN Working Paper
+
+─── YEAR 2 (Months 13–26): CHAPTER 1 PUBLICATION + CHAPTER 2 ─────────
+
+   Months 13–15:
+   ◆ Month 13: Submit to IAAE or EEA-ESEM conference
+   ◆ Month 14: Present Chapter 1 at 1st conference
+   ● Start Chapter 2: alternative data sourcing & access validation
+   ● Confirm data availability (see checklist in Chapter 2 section)
+
+   Month 15:
+   ★ SUBMIT CHAPTER 1 to Int. J. of Forecasting (1st choice)
+      ↳ Expected first decision: Month 18–21
+
+   Months 15–22:
+   ● Chapter 2: build NLP pipeline (FinBERT for sentiment extraction)
+   ● Chapter 2: integrate alternative data into best model from Ch.1
+   ● Chapter 2: run ablation study (Base → +A → +B → +C → +D)
+   ● Chapter 2: SHAP analysis for data source contributions
+
+   Months 18–21:
+   ★ Receive Chapter 1 decision from journal:
+      → If R&R: revise within 2 months (Months 19–21)
+      → If rejected: resubmit to J. Int. Money & Finance (Month 19)
+
+   Months 22–26:
+   ● Chapter 2: write first complete draft
+   ◆ Month 23: Present Chapter 2 at BdF seminar
+   ◆ Month 24: Present at CFE-CMStatistics conference
+   ★ Month 24: Mid-thesis committee review ("comité de suivi")
+   ★ Month 26: Circulate Chapter 2 as Working Paper
+
+─── YEAR 3 (Months 25–36): CHAPTER 2 PUBLICATION + CHAPTER 3 ─────────
+
+   Month 27:
+   ★ SUBMIT CHAPTER 2 to J. Business & Econ. Statistics (1st choice)
+      ↳ Expected first decision: Month 30–33
+
+   Months 25–30:
+   ● Chapter 3: extend data to Germany, Italy, Spain
+   ● Chapter 3: test transfer learning (train France → fine-tune)
+   ● Chapter 3: policy-relevant loss function analysis
+
+   Months 30–33:
+   ★ Receive Chapter 2 decision from journal:
+      → If R&R: revise within 2 months (Months 31–33)
+      → If rejected: resubmit to J. Applied Econometrics (Month 31)
+   ● Chapter 3: counterfactual policy exercise
+   ● Chapter 3: write first complete draft
+
+   Months 33–36:
+   ◆ Month 34: Present Chapter 3 at EEA-ESEM or SNDE conference
+   ★ Month 35: Circulate Chapter 3 as Working Paper
+   ★ Month 36: SUBMIT CHAPTER 3 to European Economic Review
+
+─── YEAR 3.5 (Months 37–42): THESIS COMPILATION + DEFENSE ────────────
+
+   Months 37–39:
+   ● Write general introduction (~25 pages):
+     - Motivation, positioning in the literature
+     - Summary of contributions
+     - How chapters connect
+   ● Write general conclusion (~15 pages):
+     - Key findings synthesis
+     - Policy recommendations
+     - Limitations & future research agenda
+   ★ Handle any pending R&R revisions for Chapters 1 or 2
+
+   Months 39–41:
+   ● Compile full thesis document
+   ● Send to supervisor and committee for pre-defense review
+   ● Incorporate final feedback
+   ● Prepare defense presentation (45 min + Q&A)
+
+   Month 42:
+   ★★★ THESIS DEFENSE ★★★
+
+─── EXPECTED PUBLICATION STATUS AT DEFENSE ────────────────────────────
+
+   ┌──────────┬──────────────────────────┬───────────────────────────┐
+   │ Chapter  │ Best case                │ Realistic case            │
+   ├──────────┼──────────────────────────┼───────────────────────────┤
+   │    1     │ Published                │ Accepted / in press       │
+   │    2     │ Accepted                 │ R&R (2nd round)           │
+   │    3     │ R&R                      │ Under review              │
+   └──────────┴──────────────────────────┴───────────────────────────┘
+
+   This meets the typical French doctoral school requirement of
+   at least 1 accepted + 1 under review at the time of defense.
+
+─── PARALLEL ACTIVITIES (throughout the PhD) ──────────────────────────
+
+   • Attend 2–3 conferences per year (budget ~€3,000/year)
+   • Referee 2–3 papers per year (builds reputation with editors)
+   • Attend doctoral school workshops and summer schools:
+     - Barcelona GSE Summer School (ML methods)
+     - CEMFI Summer School (time series econometrics)
+     - ECB/BdF joint research workshops
+   • Build academic network: co-authors, discussants, Twitter/X
+   • Maintain a personal academic website with papers and code
+
+================================================================================
+PRACTICAL CONSIDERATIONS
+================================================================================
+
+Employment format:
+   □ CIFRE contract (industrial PhD with BdF as employer)?
+   □ Part-time PhD while continuing BdF role?
+   □ Full-time leave from BdF?
+   → DECIDE THIS FIRST. It determines timeline and feasibility.
+
+Computing resources:
+   □ BdF internal servers (check GPU availability)
+   □ University HPC cluster (negotiate with PhD program)
+   □ Cloud budget (AWS/GCP — estimate ~€2,000–5,000 over 3 years)
+
+Data confidentiality:
+   □ Can you publish results using BdF internal BoP data?
+   □ Will results need BdF clearance before submission?
+   □ Alternative: use only publicly available BoP data (Eurostat/IMF)
+     to avoid restrictions, supplement with BdF data for internal
+     validation only.
+   → CLARIFY WITH BdF LEGAL/COMPLIANCE EARLY.
+
+Supervisor profiles to investigate:
+   - France: Laurent Music (PSE), Jean-Michel Galoupin (TSE),
+     faculty at CREST/ENSAE with ML + macro focus
+   - ECB: Check DG-Statistics and DG-Research staff with PhD
+     supervision capacity
+   - Search Google Scholar for: "nowcasting" + "balance of payments"
+     OR "machine learning" + "external sector" + "central bank"
+   → AIM TO IDENTIFY 3–5 CANDIDATES BY MONTH 1.
+
+================================================================================
+KEY LITERATURE — STARTER READING LIST (20 papers)
+================================================================================
+
+AI/ML in Macroeconomics:
+   1.  Babii, A., Ghysels, E., & Striaukas, J. (2022). ML time series
+       regressions. J. Business & Economic Statistics.
+   2.  Goulet Coulombe, P., et al. (2022). How is ML useful for macro
+       forecasting? J. Applied Econometrics.
+   3.  Medeiros, M., et al. (2021). Forecasting inflation in a data-
+       rich environment. J. Applied Econometrics.
+   4.  Gu, S., Kelly, B., & Xiu, D. (2020). Empirical asset pricing
+       via ML. Review of Financial Studies.
+   5.  Storm, H., Baylis, K., & Heckelei, T. (2020). ML in
+       agricultural and applied economics. European Review of
+       Agricultural Economics.
+
+Nowcasting:
+   6.  Bańbura, M., et al. (2013). Now-casting and the real-time data
+       flow. Handbook of Economic Forecasting.
+   7.  Bok, B., et al. (2018). Macroeconomic nowcasting and forecasting
+       with big data. Annual Review of Economics.
+   8.  Giannone, D., Reichlin, L., & Small, D. (2008). Nowcasting.
+       J. Monetary Economics.
+   9.  Lewis, D., Mertens, K., & Stock, J. (2022). Dynamic factor
+       models. Handbook of Macroeconomics.
+   10. Richardson, A., et al. (2021). Nowcasting GDP using ML
+       algorithms. International J. of Forecasting.
+
+Alternative Data:
+   11. Woloszko, N. (2020). Tracking activity with Google Trends.
+       OECD Working Paper.
+   12. Aprigliano, V., et al. (2019). Payment system data for GDP.
+       International J. of Central Banking.
+   13. Donaldson, D. & Storeygard, A. (2016). The view from above:
+       satellite data in economics. J. Economic Perspectives.
+   14. Ardia, D., Bluteau, K., & Boudt, K. (2019). Questioning the
+       news about economic growth. J. Financial Econometrics.
+   15. Buckman, S., et al. (2020). News sentiment in the time of
+       COVID-19. FRBSF Economic Letter.
+
+Balance of Payments / External Sector:
+   16. Lane, P. & Milesi-Ferretti, G.M. (2018). The external wealth
+       of nations revisited. J. International Economics.
+   17. Obstfeld, M. (2012). Does the current account still matter?
+       American Economic Review.
+   18. Adler, G., et al. (2019). External sector assessment. IMF
+       Working Paper.
+   19. Habib, M., et al. (2020). The analytics of the euro area
+       current account. ECB Occasional Paper.
+   20. Curcuru, S., Thomas, C., & Warnock, F. (2013). On returns
+       differentials. J. International Money and Finance.
+
+================================================================================

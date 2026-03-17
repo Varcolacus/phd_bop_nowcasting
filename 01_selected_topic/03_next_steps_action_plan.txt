@@ -1,0 +1,213 @@
+================================================================================
+   NEXT STEPS — ACTION PLAN (as of March 2026)
+================================================================================
+
+================================================================================
+🔴 IMMEDIATE (next 2–4 weeks)
+================================================================================
+
+1. DECIDE EMPLOYMENT FORMAT
+   ─────────────────────────
+   This is the single biggest blocker. Everything else depends on it.
+
+   Options:
+   • CIFRE convention — BdF pays salary, split time between BdF and
+     university. Best of both worlds but requires BdF management
+     approval and a partner lab. CIFRE applications go through ANRT
+     and take 2–3 months to process.
+   • Part-time ("salarié-doctorant") — Keep BdF position, PhD on the
+     side. Slower (4–5 years instead of 3), but no income risk.
+   • Full-time leave — Maximum focus but lose salary.
+
+   → ACTION: Talk to manager and HR this week. Ask if BdF has a PhD
+     support program or existing CIFRE partnerships.
+   → DEADLINE: Decision by end of April 2026.
+
+
+2. IDENTIFY 3–5 POTENTIAL SUPERVISORS
+   ────────────────────────────────────
+   You cannot apply to a program without a supervisor who agrees to
+   work with you.
+
+   Where to search:
+   • Google Scholar: "nowcasting" "balance of payments" or
+     "machine learning" "external sector"
+   • IDEAS/RePEc: filter by JEL codes F32 (current account),
+     C53 (forecasting), C45 (neural networks)
+
+   Concrete leads to investigate:
+   • CREST/ENSAE — strong ML + econometrics intersection
+   • PSE — international macro group
+   • TSE — quantitative economics track
+   • ECB DG-Research — staff who co-supervise PhDs
+   • Recent BdF Working Paper authors on nowcasting topics
+
+   → ACTION: Make a shortlist, read 2–3 papers from each candidate,
+     then send a concise email with your 1-page research idea.
+   → DEADLINE: Shortlist ready by end of March 2026.
+              Emails sent by mid-April 2026.
+
+
+3. VALIDATE DATA ACCESS
+   ─────────────────────
+   Before committing to the thesis outline, confirm what you can
+   actually use.
+
+   Three questions to answer:
+   □ Can you publish results based on BdF internal BoP data,
+     or only public Eurostat/IMF data?
+   □ Does BdF have a Refinitiv/Bloomberg terminal you can access
+     for research purposes?
+   □ Is there a process for BdF clearance before submitting papers?
+
+   → ACTION: Set up a meeting with BdF legal/compliance team.
+   → DEADLINE: Answers by mid-April 2026.
+
+
+================================================================================
+🟡 SHORT-TERM (next 1–3 months)
+================================================================================
+
+4. RUN A QUICK PROOF-OF-CONCEPT
+   ─────────────────────────────
+   Don't wait for the PhD to start. A small pilot study (2–3 weeks
+   of work) will:
+   • Test whether the idea is technically feasible
+   • Give you something concrete to show potential supervisors
+   • Help you decide between model architectures
+
+   Suggested pilot:
+   • Data: Public quarterly BoP data from Eurostat (France, 2000–2025)
+   • Model: Simple XGBoost to nowcast the trade balance using
+     standard macro indicators (GDP, PMI, exchange rates, etc.)
+   • Baseline: AR(1) model
+   • Deliverable: A short memo (3–5 pages) with results and charts
+
+   → ACTION: Set up Python environment, download data, run experiment.
+   → DEADLINE: Pilot completed by end of April 2026.
+
+
+5. START THE LITERATURE REVIEW
+   ────────────────────────────
+   Don't just read passively — build a structured database.
+
+   Create a Zotero library (or spreadsheet) with columns for:
+   • Paper title, authors, year
+   • Method used
+   • Data source and BoP component studied
+   • Key finding
+   • Relevance to your thesis (high / medium / low)
+
+   Targets:
+   • 30 papers in the first month
+   • 60 papers by month 3
+   • Start with the 20 papers listed in 02_thesis_3chapter_outline.txt
+
+   → ACTION: Set up Zotero, start reading.
+   → DEADLINE: Ongoing. First 30 papers by end of April 2026.
+
+
+6. APPLY TO DOCTORAL SCHOOLS
+   ──────────────────────────
+   Application deadlines vary. Many French programs have spring
+   deadlines (April–June).
+
+   Programs to check:
+   • PSE (ED Économie Panthéon-Sorbonne) — usually April–May
+   • TSE (Toulouse School of Economics) — usually Feb–April
+     ⚠️ May already be tight for 2026 intake!
+   • CREST/ENSAE (IP Paris) — check doctoral school deadlines
+   • HEC Paris PhD — check deadlines
+   • Check if any have rolling admissions
+
+   → ACTION: Visit websites this week, note all deadlines.
+   → DEADLINE: Applications submitted before respective deadlines.
+
+
+================================================================================
+🟢 MEDIUM-TERM (months 3–6)
+================================================================================
+
+7. WRITE A 5-PAGE RESEARCH PROPOSAL
+   ──────────────────────────────────
+   Once a supervisor is interested, you'll need a formal proposal.
+
+   Structure:
+   • Motivation (1 page)
+   • Research questions (0.5 page)
+   • Methodology overview (1.5 pages)
+   • Data & feasibility (1 page)
+   • Expected contributions & timeline (1 page)
+
+   You already have 90% of the content in your existing documents —
+   it's about condensing and sharpening for a formal audience.
+
+   → ACTION: Draft after supervisor discussions.
+   → DEADLINE: Ready by June 2026.
+
+
+8. SET UP TECHNICAL ENVIRONMENT
+   ─────────────────────────────
+   • Python environment:
+     - Core: statsmodels, scikit-learn, xgboost, pytorch, transformers
+     - Data: pandas, numpy, eurostat (API client)
+     - Visualization: matplotlib, seaborn, plotly
+   • GPU access:
+     - Option A: BdF internal server (check availability)
+     - Option B: University HPC cluster (negotiate with PhD program)
+     - Option C: Google Colab Pro (~€10/month) for early experiments
+   • Version control:
+     - Git repository (GitHub or BdF internal GitLab)
+     - Separate repos for code, data pipelines, and paper LaTeX
+   • Writing:
+     - LaTeX template for thesis (check doctoral school requirements)
+     - Overleaf account for collaborative paper writing with co-authors
+
+   → ACTION: Set up Python + Git. GPU can wait until Month 6.
+   → DEADLINE: Basic setup by May 2026.
+
+
+================================================================================
+📋 30-DAY CHECKLIST
+================================================================================
+
+   Week 1 (March 17–23):
+   □ Talk to BdF manager/HR about CIFRE or PhD support options
+   □ Check doctoral school application deadlines (PSE, TSE, CREST)
+   □ Set up Zotero library
+
+   Week 2 (March 24–30):
+   □ Shortlist 5 potential supervisors
+   □ Read 2–3 papers from each supervisor candidate
+   □ Clarify data access rules with BdF legal/compliance
+
+   Week 3 (March 31 – April 6):
+   □ Email 3 supervisors with your 1-page research idea
+   □ Start reading the 20 papers from the thesis outline
+   □ Download public BoP data from Eurostat for pilot study
+
+   Week 4 (April 7–13):
+   □ Run pilot XGBoost nowcasting test on public BoP data
+   □ Write up pilot results (3–5 page memo)
+   □ Submit doctoral school applications (if deadlines allow)
+
+================================================================================
+NOTES
+================================================================================
+
+• The most important thing right now is HUMAN CONVERSATIONS:
+  manager, HR, potential supervisors. Documents are ready — you
+  need buy-in from people.
+
+• The pilot study is your secret weapon for supervisor outreach.
+  Showing up with preliminary results ("I already tested this and
+  here's what I found") is far more convincing than a proposal alone.
+
+• Don't let perfect be the enemy of good. The research questions
+  and methodology WILL evolve during the PhD. What matters now is
+  a credible starting point and an engaged supervisor.
+
+• Keep this action plan updated. Check off items as you complete
+  them, and add new tasks as they emerge.
+
+================================================================================
