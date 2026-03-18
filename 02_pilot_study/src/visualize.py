@@ -49,8 +49,10 @@ def plot_forecast_comparison(df):
         "AR(1)": "#999999",
         "AR(4)": "#bbbbbb",
         "OLS": "#2196F3",
+        "Ridge": "#2196F3",
         "GradientBoosting": "#FF9800",
         "XGBoost": "#E91E63",
+        "LSTM": "#9C27B0",
     }
 
     # Plot actuals (same for all models, take from first)
@@ -111,9 +113,14 @@ def plot_rmse_comparison(comparison_df):
     models = comparison_df["model"]
     rmse = comparison_df["rmse"]
 
-    colors = ["#999999" if "AR" in m else "#2196F3" if m == "OLS"
-              else "#FF9800" if m == "GradientBoosting" else "#E91E63"
-              for m in models]
+    def _model_color(m):
+        if "AR" in m: return "#999999"
+        if m in ("OLS", "Ridge"): return "#2196F3"
+        if m == "GradientBoosting": return "#FF9800"
+        if m == "LSTM": return "#9C27B0"
+        return "#E91E63"  # XGBoost / default
+
+    colors = [_model_color(m) for m in models]
 
     bars = ax.barh(models, rmse, color=colors, edgecolor="white")
     ax.set_xlabel("RMSE (lower is better)")
@@ -163,8 +170,10 @@ def plot_error_distribution(df):
         "AR(1)": "#999999",
         "AR(4)": "#bbbbbb",
         "OLS": "#2196F3",
+        "Ridge": "#2196F3",
         "GradientBoosting": "#FF9800",
         "XGBoost": "#E91E63",
+        "LSTM": "#9C27B0",
     }
 
     for ax, model_name in zip(axes, models):
@@ -203,8 +212,10 @@ def plot_cumulative_sse(df):
         "AR(1)": "#999999",
         "AR(4)": "#bbbbbb",
         "OLS": "#2196F3",
+        "Ridge": "#2196F3",
         "GradientBoosting": "#FF9800",
         "XGBoost": "#E91E63",
+        "LSTM": "#9C27B0",
     }
 
     # Get baseline errors

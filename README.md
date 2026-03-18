@@ -13,13 +13,19 @@ phd/
   00_overview/              # Topic exploration & comparison
   01_selected_topic/        # Thesis outline, publication strategy, action plan
   02_pilot_study/           # Working pilot study code
-    run_pilot.py            # Full pipeline orchestrator
+    run_pilot.py            # Full pipeline orchestrator (quarterly)
+    run_monthly.py          # Monthly frequency extension pipeline
     src/
       download_data.py      # Downloads real data from ECB SDW (7 series)
-      models.py             # AR(1), AR(4), Ridge, GradientBoosting, XGBoost
+      models.py             # AR(1), AR(4/12), Ridge, GB, XGBoost, LSTM
       visualize.py          # 4 diagnostic charts
     data/                   # Downloaded datasets (auto-generated, git-ignored)
-    outputs/                # Results: CSVs + charts (charts git-ignored)
+    outputs/                # Results: CSVs, charts, pilot study memo
+      pilot_study_memo.txt  # Comprehensive 5-page pilot study memo
+      monthly/              # Monthly frequency results
+  03_chapters/              # Working paper drafts
+    chapter2_alternative_data.txt      # Ch.2: Alternative data for BoP
+    chapter3_policy_implications.txt   # Ch.3: Policy implications
 ```
 
 ## Pilot Study Results (Real ECB Data)
@@ -30,10 +36,14 @@ phd/
 |---|---|---|---|
 | AR(1) | 8,913 | baseline | -- |
 | AR(4) | 7,512 | -15.7% | No |
-| GradientBoosting | **4,433** | **-50.3%** | **Yes** |
-| XGBoost | **4,542** | **-49.0%** | **Yes** |
+| Ridge | **6,538** | **-26.6%** | **Yes** |
+| GradientBoosting | 7,562 | -15.1% | No |
+| XGBoost | 7,671 | -13.9% | No |
+| LSTM | 8,999 | +1.0% | No |
 
-ML models beat AR baselines by ~50% RMSE, statistically significant via Diebold-Mariano test.
+After fixing feature leakage (removed BoP sub-components and contemporaneous target transforms from features), Ridge is the best-performing model, the only one statistically significant vs AR(1) via Diebold-Mariano test.
+
+**SHAP top features:** `bop_ca_lag4`, `bop_ca_lag1`, `hicp`, `gdp_yoy`, `gdp`
 
 ## Data Sources
 
@@ -47,7 +57,7 @@ ML models beat AR baselines by ~50% RMSE, statistically significant via Diebold-
 ## How to Run
 
 ```bash
-pip install pandas numpy scikit-learn statsmodels matplotlib requests xgboost
+pip install -r requirements.txt
 cd 02_pilot_study
 python run_pilot.py
 ```
@@ -56,12 +66,12 @@ The pipeline will automatically download data from the ECB and run all models.
 
 ## Next Steps
 
-- [ ] Fix Ridge feature leakage (remove BoP components from features)
-- [ ] Add LSTM/neural network model
-- [ ] Add SHAP feature importance analysis
-- [ ] Extend to monthly frequency
-- [ ] Write pilot study memo for PhD supervisor search
-- [ ] Chapters 2 & 3 (NLP for BoP, real-time data revisions)
+- [x] Fix Ridge feature leakage (remove BoP components from features)
+- [x] Add LSTM/neural network model
+- [x] Add SHAP feature importance analysis
+- [x] Extend to monthly frequency
+- [x] Write pilot study memo for PhD supervisor search
+- [x] Chapters 2 & 3 working paper drafts (skeleton + methodology)
 
 ## Author
 

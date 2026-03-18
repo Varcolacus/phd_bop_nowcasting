@@ -29,6 +29,19 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error
 import xgboost as xgb
 import statsmodels.api as sm
 
+try:
+    import torch
+    import torch.nn as nn
+    HAS_TORCH = True
+except ImportError:
+    HAS_TORCH = False
+
+try:
+    import shap
+    HAS_SHAP = True
+except ImportError:
+    HAS_SHAP = False
+
 warnings.filterwarnings("ignore")
 
 DATA_DIR = Path(__file__).parent.parent / "data"
@@ -159,6 +172,68 @@ def xgboost_forecast(X_train, y_train, X_test_row):
 
 
 # ---------------------------------------------------------------------------
+# LSTM Model
+# ---------------------------------------------------------------------------
+
+class _LSTMNet(nn.Module if HAS_TORCH else object):
+    """Simple single-layer LSTM for 1-step-ahead regression."""
+    def __init__(self, input_size, hidden_size=32):
+        super().__init__()
+        self.lstm = nn.LSTM(input_size, hidden_size, batch_first=True)
+        self.fc = nn.Linear(hidden_size, 1)
+
+    def forward(self, x):
+        # x: (batch, seq_len, features)
+        out, _ = self.lstm(x)
+        return self.fc(out[:, -1, :]).squeeze(-1)
+
+
+def lstm_forecast(X_train, y_train, X_test_row, lookback=4, hidden_size=32,
+                  epochs=100, lr=0.005):
+    """
+    LSTM 1-step-ahead forecast using a rolling lookback window.
+    Requires PyTorch.
+    """
+    if not HAS_TORCH:
+        return np.nan
+    if len(y_train) < lookback + 10:
+        return np.nan
+
+    try:
+        # Build sequences
+        X_seq, y_seq = [], []
+        for i in range(lookback, len(y_train)):
+            X_seq.append(X_train[i - lookback:i])
+            y_seq.append(y_train[i])
+        X_seq = np.array(X_seq, dtype=np.float32)
+        y_seq = np.array(y_seq, dtype=np.float32)
+
+        X_t = torch.from_numpy(X_seq)
+        y_t = torch.from_numpy(y_seq)
+
+        model = _LSTMNet(X_train.shape[1], hidden_size)
+        optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+        loss_fn = nn.MSELoss()
+
+        model.train()
+        for _ in range(epochs):
+            optimizer.zero_grad()
+            pred = model(X_t)
+            loss = loss_fn(pred, y_t)
+            loss.backward()
+            optimizer.step()
+
+        # Predict: use last `lookback` rows of training features
+        model.eval()
+        with torch.no_grad():
+            x_new = np.vstack([X_train[-(lookback - 1):], X_test_row.reshape(1, -1)])
+            x_new = torch.from_numpy(x_new.astype(np.float32)).unsqueeze(0)
+            return model(x_new).item()
+    except Exception:
+        return np.nan
+
+
+# ---------------------------------------------------------------------------
 # Expanding Window Evaluation
 # ---------------------------------------------------------------------------
 
@@ -211,6 +286,8 @@ def expanding_window_evaluation(df, target_col, feature_cols,
         "GradientBoosting": ForecastResult("GradientBoosting"),
         "XGBoost": ForecastResult("XGBoost"),
     }
+    if HAS_TORCH:
+        models["LSTM"] = ForecastResult("LSTM")
 
     # Scale features for ML models
     scaler = StandardScaler()
@@ -258,6 +335,13 @@ def expanding_window_evaluation(df, target_col, feature_cols,
         models["XGBoost"].predictions.append(pred_xgb)
         models["XGBoost"].actuals.append(y_test)
         models["XGBoost"].dates.append(test_date)
+
+        # --- LSTM ---
+        if HAS_TORCH and "LSTM" in models:
+            pred_lstm = lstm_forecast(X_train_scaled, y_train, X_test_scaled)
+            models["LSTM"].predictions.append(pred_lstm)
+            models["LSTM"].actuals.append(y_test)
+            models["LSTM"].dates.append(test_date)
 
     # Compute metrics
     for name, res in models.items():
@@ -434,6 +518,72 @@ def save_results(models):
 
 
 # ---------------------------------------------------------------------------
+# SHAP Feature Importance
+# ---------------------------------------------------------------------------
+
+def shap_feature_importance(df, target_col, feature_cols, min_train_size=40):
+    """
+    Compute SHAP values for XGBoost trained on the full training window.
+    Saves a bar plot (mean |SHAP|) and a beeswarm plot to outputs/.
+    """
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    cols_needed = [target_col] + feature_cols
+    df_clean = df[["date"] + cols_needed].dropna().reset_index(drop=True)
+
+    y = df_clean[target_col].values
+    X = df_clean[feature_cols].values
+
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
+    # Train XGBoost on the full dataset (for explanation, not forecasting)
+    model = xgb.XGBRegressor(
+        n_estimators=100, max_depth=3, learning_rate=0.1,
+        min_child_weight=5, reg_alpha=0.1, reg_lambda=1.0,
+        random_state=42, verbosity=0,
+    )
+    model.fit(X_scaled, y)
+
+    explainer = shap.TreeExplainer(model)
+    shap_values = explainer.shap_values(X_scaled)
+
+    # Mean |SHAP| bar chart
+    fig, ax = plt.subplots(figsize=(8, max(4, len(feature_cols) * 0.3)))
+    mean_abs = np.abs(shap_values).mean(axis=0)
+    order = np.argsort(mean_abs)[::-1]
+    top_n = min(15, len(feature_cols))
+    top_idx = order[:top_n]
+
+    ax.barh(range(top_n), mean_abs[top_idx][::-1],
+            color="#E91E63", edgecolor="white")
+    ax.set_yticks(range(top_n))
+    ax.set_yticklabels([feature_cols[i] for i in top_idx][::-1])
+    ax.set_xlabel("Mean |SHAP value|")
+    ax.set_title("XGBoost Feature Importance (SHAP)", fontweight="bold")
+    plt.tight_layout()
+    fig.savefig(OUTPUT_DIR / "shap_importance.png", dpi=150, bbox_inches="tight")
+    plt.close()
+    print("  Saved shap_importance.png")
+
+    # Beeswarm / summary plot
+    fig, ax = plt.subplots(figsize=(10, max(4, len(feature_cols) * 0.3)))
+    shap.summary_plot(shap_values, X_scaled, feature_names=feature_cols,
+                      show=False, max_display=top_n)
+    plt.tight_layout()
+    plt.savefig(OUTPUT_DIR / "shap_summary.png", dpi=150, bbox_inches="tight")
+    plt.close()
+    print("  Saved shap_summary.png")
+
+    # Print top features
+    print(f"\n  Top {top_n} features by mean |SHAP value|:")
+    for rank, idx in enumerate(top_idx, 1):
+        print(f"    {rank:>2}. {feature_cols[idx]:<25} {mean_abs[idx]:.2f}")
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -467,10 +617,16 @@ def main():
 
     target_col = potential_targets[0]
 
-    # Features: all other numeric columns (levels + transformations)
+    # Features: all other numeric columns EXCEPT other BoP components
+    # AND contemporaneous target transformations to prevent data leakage.
+    # bop_ca_qoq = bop_ca[t] - bop_ca[t-1] contains the target at time t.
+    bop_leakage = ["bop_goods", "bop_services"]
+    target_contemp = [f"{target_col}_yoy", f"{target_col}_qoq"]
     feature_cols = [c for c in df.columns
                     if c != "date" and c != target_col
-                    and df[c].dtype in [np.float64, np.int64, float]]
+                    and c not in target_contemp
+                    and df[c].dtype in [np.float64, np.int64, float]
+                    and not any(c.startswith(prefix) for prefix in bop_leakage)]
 
     # Also add lagged target as a feature (if not already present)
     for lag_name, lag_val in [(f"{target_col}_lag1", 1), (f"{target_col}_lag4", 4)]:
@@ -502,6 +658,18 @@ def main():
 
     # Save results
     save_results(models)
+
+    # --- SHAP Feature Importance ---
+    if HAS_SHAP:
+        print("\n" + "=" * 70)
+        print("  SHAP FEATURE IMPORTANCE (XGBoost)")
+        print("=" * 70)
+        try:
+            shap_feature_importance(df, target_col, feature_cols)
+        except Exception as e:
+            print(f"  [WARN] SHAP analysis failed: {e}")
+    else:
+        print("\n  [INFO] Install 'shap' for feature importance analysis.")
 
     print("\n[OK] Pilot study complete!")
 

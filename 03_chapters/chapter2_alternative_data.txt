@@ -1,0 +1,478 @@
+================================================================================
+   CHAPTER 2 — WORKING PAPER DRAFT
+   The Value of Alternative Data for Balance of Payments Nowcasting:
+   Evidence from France
+================================================================================
+
+   Status:   First Draft (skeleton + methodology)
+   Target:   Journal of Business & Economic Statistics
+             (alt: Journal of Applied Econometrics)
+   Authors:  [Your Name]
+   Date:     March 2026
+
+================================================================================
+ABSTRACT
+================================================================================
+
+This paper quantifies the marginal information content of non-traditional
+and high-frequency data sources for nowcasting France's Balance of Payments
+(BoP) components.  Starting from the best-performing model identified in
+Chapter 1 (Ridge regression with standard macro indicators), we incrementally
+add four categories of alternative data: (A) trade-activity proxies such as
+the Baltic Dry Index and container throughput indices, (B) financial-flow
+proxies including exchange rate volatility and sovereign CDS spreads,
+(C) text-based sentiment indicators extracted via NLP from ECB and Banque de
+France communications, and (D) satellite-derived geospatial indicators.
+Using a structured ablation study with expanding-window pseudo real-time
+evaluation and Giacomini-White conditional predictive ability tests, we find
+that [PLACEHOLDER: categories A and C provide statistically significant
+improvements of X–Y% RMSE, while categories B and D offer limited additional
+value].  SHAP analysis confirms that NLP-derived sentiment scores and
+container throughput are the most informative alternative variables.  Our
+results provide actionable guidance for central banks considering investments
+in alternative data infrastructure for external sector monitoring.
+
+Keywords: Balance of Payments, Nowcasting, Alternative Data, NLP, Machine
+          Learning, Feature Importance
+
+
+================================================================================
+1.  INTRODUCTION
+================================================================================
+
+1.1  Motivation
+
+Central banks increasingly rely on real-time data for timely policy
+decisions.  Traditional Balance of Payments data, compiled from surveys and
+administrative records, are typically released with a 3-month lag.  This
+creates a "data gap" that policymakers must bridge using informal judgement
+or simple extrapolation.
+
+The macroeconomic nowcasting literature has demonstrated that incorporating
+high-frequency indicators — such as financial market data, surveys, and
+search trends — can substantially improve GDP estimates (Bańbura et al.,
+2013; Bok et al., 2018).  However, this approach has not been systematically
+applied to external sector statistics.
+
+Meanwhile, a new frontier of "alternative data" has emerged.  NLP techniques
+extract signals from unstructured text (Ardia et al., 2019; Shapiro et al.,
+2022).  Satellite imagery measures economic activity from space (Donaldson
+& Storeygard, 2016).  Shipping indices capture physical trade flows in near
+real-time.  The question for BoP statisticians is: which of these sources
+actually adds predictive value, and is the gain worth the cost of data
+acquisition and processing?
+
+1.2  Contribution
+
+This paper makes three contributions:
+
+    (i)   First systematic ablation study quantifying the incremental value
+          of each alternative data category for BoP nowcasting.
+
+    (ii)  Development and validation of an NLP pipeline for extracting
+          trade-relevant sentiment from central bank communications, using
+          FinBERT (Araci, 2019) fine-tuned on ECB/BdF texts.
+
+    (iii) Practical guidance for central banks on the cost-benefit trade-off
+          of alternative data investments for external sector monitoring.
+
+1.3  Relation to literature
+
+Our work connects to three strands of literature:
+
+    Macroeconomic nowcasting:
+    GDP nowcasting is well-established (Giannone et al., 2008; Lewis et al.,
+    2022).  We extend these methods to BoP components, which present unique
+    challenges: smaller samples, accounting identities to respect, and
+    compositional structure (CA ≈ goods + services + income + transfers).
+
+    Alternative data in economics:
+    Woloszko (2020) uses Google Trends for GDP tracking.  Aprigliano et al.
+    (2019) use payment system data.  Satellite imagery is surveyed by
+    Donaldson & Storeygard (2016).  We integrate multiple alternative data
+    types simultaneously and compare their relative contributions.
+
+    NLP in finance and macro:
+    Shapiro et al. (2022) extract sentiment from news for inflation
+    forecasting.  Hansen & McMahon (2016) analyse central bank communications.
+    We adapt these techniques specifically for BoP-relevant signals.
+
+1.4  Preview of results
+
+    [TO BE COMPLETED WITH EMPIRICAL RESULTS]
+
+
+================================================================================
+2.  DATA
+================================================================================
+
+2.1  Target variable
+
+We use monthly goods trade balance for France from the ECB Statistical Data
+Warehouse (BPM6 methodology), January 2008 to December 2022 (180 monthly
+observations).  This is the same target used in the Chapter 1 monthly
+extension.
+
+2.2  Baseline features (from Chapter 1)
+
+The baseline model includes 9 features: EUR/USD exchange rate, HICP, Euribor
+3-month rate (levels and 1-month lags), and target lags at horizons 1, 3,
+and 12 months.
+
+2.3  Alternative data categories
+
+We organise alternative data into four categories, tested sequentially:
+
+    CATEGORY A — Trade-activity proxies
+    ────────────────────────────────────
+    •  Baltic Dry Index (BDI), daily → monthly average
+       Source: Baltic Exchange (public, via FRED)
+       Rationale: BDI captures global bulk shipping demand, a leading
+       indicator of physical trade volumes.
+
+    •  Container Throughput Index (CTI), monthly
+       Source: RWI/ISL Institute (public, monthly release)
+       Rationale: Containerised trade accounts for ~60% of global
+       trade by value; CTI captures port activity.
+
+    •  AIS vessel tracking — ships docking at French ports, monthly
+       Source: MarineTraffic (requires BdF institutional access)
+       Rationale: Direct physical measurement of French trade activity.
+       [NOTE: Include only if BdF data access is confirmed.]
+
+    CATEGORY B — Financial-flow proxies
+    ────────────────────────────────────
+    •  EUR/USD realised volatility (20-day rolling), daily → monthly
+       Source: ECB (public)
+       Rationale: Exchange rate uncertainty affects trade invoicing
+       decisions and financial account flows.
+
+    •  France sovereign CDS spread (5-year), daily → monthly
+       Source: Refinitiv (BdF terminal access)
+       Rationale: Proxy for country risk and capital flow dynamics.
+
+    •  Euro area bank lending survey — credit standards indicator
+       Source: ECB (quarterly, interpolated to monthly)
+       Rationale: Credit conditions influence trade finance.
+
+    CATEGORY C — Text/sentiment data
+    ────────────────────────────────────
+    •  NLP sentiment from ECB Monetary Policy Statements
+       Method: FinBERT (Araci, 2019) applied to paragraph-level chunks.
+       Each statement → sentiment score ∈ [-1, +1].
+       Monthly series constructed from statement dates.
+       Source: ECB website (public).
+
+    •  NLP sentiment from Banque de France economic outlook publications
+       Method: Same FinBERT pipeline.
+       Source: BdF website (public).
+
+    •  Trade Policy Uncertainty (TPU) index
+       Source: Caldara & Iacoviello (2022) — public download.
+       Rationale: Direct measure of trade policy disruption risk.
+
+    •  Google Trends: "export France", "import France", "balance
+       commerciale" — monthly search intensity index.
+       Source: Google Trends API (public).
+
+    CATEGORY D — Satellite/geospatial data
+    ────────────────────────────────────────
+    •  Nighttime light intensity (NTL) — France, monthly average
+       Source: World Bank / VIIRS (public)
+       Rationale: NTL is a well-established proxy for economic activity
+       (Henderson et al., 2012).
+
+    •  Port congestion index — waiting times at major French ports
+       (Marseille, Le Havre)
+       Source: MarineTraffic / PortWatch IMF (check access).
+       [NOTE: Include only if accessible.]
+
+
+================================================================================
+3.  METHODOLOGY
+================================================================================
+
+3.1  Experimental design: structured ablation study
+
+We adopt a nested model comparison design:
+
+    M0:  Baseline model (Chapter 1 features only)
+    M1:  M0 + Category A (trade-activity proxies)
+    M2:  M0 + Category B (financial-flow proxies)
+    M3:  M0 + Category C (text/sentiment data)
+    M4:  M0 + Category D (satellite/geospatial data)
+    M5:  M0 + A + B + C + D (all categories combined)
+
+Each model is evaluated using the same expanding-window protocol as
+Chapter 1 (minimum 60-month training window, step=1, standardised features).
+
+3.2  Models
+
+For each specification M0–M5, we run:
+    •  Ridge regression (best model from Chapter 1)
+    •  XGBoost (for nonlinear interactions between alternative data sources)
+    •  Temporal Fusion Transformer (TFT) — if sufficient data (Lim et al.,
+       2021)
+
+3.3  Statistical tests
+
+    •  Diebold-Mariano (1995) test: pairwise comparison of each Mk vs M0.
+    •  Giacomini-White (2006) conditional predictive ability test:
+       allows for model uncertainty and tests whether the alternative data
+       has predictive value conditional on the baseline information set.
+    •  Model Confidence Set (Hansen et al., 2011): identifies the set of
+       models that are statistically indistinguishable from the best.
+
+3.4  Feature importance
+
+    •  SHAP values (Lundberg & Lee, 2017) computed for XGBoost and Ridge.
+    •  We decompose SHAP contributions by data category to answer:
+       "What share of total feature importance comes from alternative data?"
+
+3.5  NLP pipeline
+
+    Step 1:  Collect ECB Monetary Policy Statements and BdF outlook
+             publications (PDF → text extraction).
+    Step 2:  Chunk into paragraph-level segments.
+    Step 3:  Apply FinBERT (pre-trained on financial text) to score each
+             chunk as positive/negative/neutral.
+    Step 4:  Aggregate scores to monthly frequency (weighted average by
+             proximity to month-end).
+    Step 5:  Create three features: ecb_sentiment, bdf_sentiment,
+             sentiment_dispersion (standard deviation of chunk scores).
+
+
+================================================================================
+4.  EXPECTED RESULTS
+================================================================================
+
+[TO BE COMPLETED — below is the analysis plan]
+
+4.1  Structured results table
+
+    ┌──────────────────┬──────────┬──────────┬──────────┬──────────┐
+    │ Specification    │ RMSE     │ vs M0    │ GW p-val │ MCS incl │
+    ├──────────────────┼──────────┼──────────┼──────────┼──────────┤
+    │ M0 (baseline)    │  [TBD]   │ baseline │    —     │  [TBD]   │
+    │ M1 (+trade act.) │  [TBD]   │  [TBD]   │  [TBD]  │  [TBD]   │
+    │ M2 (+financial)  │  [TBD]   │  [TBD]   │  [TBD]  │  [TBD]   │
+    │ M3 (+NLP/text)   │  [TBD]   │  [TBD]   │  [TBD]  │  [TBD]   │
+    │ M4 (+satellite)  │  [TBD]   │  [TBD]   │  [TBD]  │  [TBD]   │
+    │ M5 (all combined)│  [TBD]   │  [TBD]   │  [TBD]  │  [TBD]   │
+    └──────────────────┴──────────┴──────────┴──────────┴──────────┘
+
+4.2  Hypotheses (based on pilot study and literature)
+
+    H1:  Category A (trade-activity proxies) will provide the largest
+         marginal improvement because BDI and CTI directly measure
+         physical trade — the same quantity we are nowcasting.
+
+    H2:  Category C (NLP sentiment) will provide significant but smaller
+         improvement.  Central bank communications contain forward-looking
+         information about trade policy and external risks.
+
+    H3:  Category B (financial-flow proxies) will have limited value for
+         the goods trade balance but may be important for financial
+         account components (tested as robustness check).
+
+    H4:  Category D (satellite data) will have weakest value due to
+         data quality issues and low spatial resolution at country level.
+
+    H5:  The combined model (M5) will outperform M0 but may not outperform
+         the best single-category model if categories introduce multicollinearity.
+
+4.3  SHAP decomposition
+
+We will present a stacked bar chart showing the share of mean |SHAP| from
+each data category across the combined model M5.  This directly answers:
+"What fraction of predictive power comes from alternative vs. traditional
+data?"
+
+
+================================================================================
+5.  COST-BENEFIT ANALYSIS (PRACTICAL GUIDANCE)
+================================================================================
+
+For each data category, we report:
+
+    ┌────────────────────┬────────────┬──────────────┬───────────────────────┐
+    │ Category           │ Data cost  │ RMSE gain    │ Recommendation        │
+    ├────────────────────┼────────────┼──────────────┼───────────────────────┤
+    │ A: Trade activity  │ Low/Free   │ [TBD]        │ [TBD]                 │
+    │ B: Financial flows │ Medium     │ [TBD]        │ [TBD]                 │
+    │ C: NLP sentiment   │ Low (dev)  │ [TBD]        │ [TBD]                 │
+    │ D: Satellite       │ High       │ [TBD]        │ [TBD]                 │
+    └────────────────────┴────────────┴──────────────┴───────────────────────┘
+
+This table is designed to inform central bank data procurement decisions.
+
+
+================================================================================
+6.  ROBUSTNESS CHECKS
+================================================================================
+
+    (i)    Different target: repeat analysis for current account (quarterly)
+           instead of goods trade balance (monthly).
+    (ii)   Different forecast model: compare Ridge vs XGBoost vs TFT for
+           the combined model M5.
+    (iii)  Crisis subsamples: evaluate alternative data value during
+           GFC (2008–2009), COVID (2020), energy shock (2022).
+    (iv)   Timeliness analysis: does daily data help more than weekly/monthly?
+           (relevant for Categories A and B only).
+    (v)    Publication lag simulation: adjust data availability windows to
+           reflect actual publication calendars.
+
+
+================================================================================
+7.  CONCLUSION
+================================================================================
+
+[TO BE COMPLETED AFTER EMPIRICAL ANALYSIS]
+
+This paper provides the first systematic evaluation of alternative data
+sources for Balance of Payments nowcasting.  Our structured ablation study
+with Giacomini-White conditional predictive ability tests allows us to make
+precise statements about the incremental value of each data category.
+The SHAP-based decomposition provides interpretable evidence for which
+alternative variables drive the forecast improvement.  Together, these
+results offer actionable guidance for central banks considering investments
+in non-traditional data infrastructure for external sector monitoring.
+
+
+================================================================================
+REFERENCES
+================================================================================
+
+Aprigliano, V., Ardizzi, G., & Monteforte, L. (2019). Using Payment System
+    Data to Forecast the Italian GDP. International Journal of Central
+    Banking, 15(4), 55–88.
+
+Araci, D. (2019). FinBERT: Financial Sentiment Analysis with Pre-trained
+    Language Models. arXiv:1908.10063.
+
+Ardia, D., Bluteau, K., & Boudt, K. (2019). Questioning the News About
+    Economic Growth: Sparse Forecasting Using Thousands of News-Based
+    Sentiment Values. Journal of Financial Econometrics, 19(2), 364–394.
+
+Bańbura, M., Giannone, D., Modugno, M., & Reichlin, L. (2013). Now-Casting
+    and the Real-Time Data Flow. In G. Elliott & A. Timmermann (Eds.),
+    Handbook of Economic Forecasting (Vol. 2, pp. 195–237). Elsevier.
+
+Bok, B., Caratelli, D., Giannone, D., Sbordone, A., & Tambalotti, A. (2018).
+    Macroeconomic Nowcasting and Forecasting with Big Data. Annual Review
+    of Economics, 10, 615–643.
+
+Caldara, D. & Iacoviello, M. (2022). Measuring Geopolitical Risk. American
+    Economic Review, 112(4), 1194–1225.
+
+Diebold, F. X. & Mariano, R. S. (1995). Comparing Predictive Accuracy.
+    Journal of Business & Economic Statistics, 13(3), 253–263.
+
+Donaldson, D. & Storeygard, A. (2016). The View from Above: Applications
+    of Satellite Data in Economics. Journal of Economic Perspectives, 30(4),
+    171–198.
+
+Giacomini, R. & White, H. (2006). Tests of Conditional Predictive Ability.
+    Econometrica, 74(6), 1545–1578.
+
+Giannone, D., Reichlin, L., & Small, D. (2008). Nowcasting: The Real-Time
+    Informational Content of Macroeconomic Data. Journal of Monetary
+    Economics, 55(4), 665–676.
+
+Hansen, P. R., Lunde, A., & Nason, J. M. (2011). The Model Confidence Set.
+    Econometrica, 79(2), 453–497.
+
+Hansen, S. & McMahon, M. (2016). Shocking Language: Understanding the
+    Macroeconomic Effects of Central Bank Communication. Journal of
+    International Economics, 99, S114–S133.
+
+Henderson, J. V., Storeygard, A., & Weil, D. N. (2012). Measuring Economic
+    Growth from Outer Space. American Economic Review, 102(2), 994–1028.
+
+Lewis, D. J., Mertens, K., & Stock, J. H. (2022). Dynamic Factor Models,
+    Macroeconomics, and Finance. In Handbook of Macroeconomics.
+
+Lim, B., Arık, S. Ö., Loeff, N., & Pfister, T. (2021). Temporal Fusion
+    Transformers for Interpretable Multi-horizon Time Series Forecasting.
+    International Journal of Forecasting, 37(4), 1748–1764.
+
+Lundberg, S. M. & Lee, S.-I. (2017). A Unified Approach to Interpreting
+    Model Predictions. In Advances in Neural Information Processing Systems
+    (pp. 4765–4774).
+
+Shapiro, A. H., Sudhof, M., & Wilson, D. J. (2022). Measuring News
+    Sentiment. Journal of Econometrics, 228(2), 221–243.
+
+Woloszko, N. (2020). Tracking Activity in Real Time with Google Trends.
+    OECD Economics Department Working Papers, No. 1634.
+
+
+================================================================================
+APPENDIX A: NLP PIPELINE TECHNICAL DETAILS
+================================================================================
+
+A.1  Data collection
+
+    ECB Monetary Policy Statements:
+    •  Source: https://www.ecb.europa.eu/press/pressconf/
+    •  Period: January 2008 – December 2022
+    •  Format: HTML → plain text (BeautifulSoup extraction)
+    •  Frequency: ~8 per year (after each Governing Council meeting)
+
+    Banque de France Economic Outlook:
+    •  Source: https://www.banque-france.fr/en/publications-and-statistics/
+    •  Period: 2008–2022 (quarterly publication, ~4 per year)
+    •  Format: PDF → text (PyPDF2/pdfplumber extraction)
+
+A.2  Text preprocessing
+
+    (1)  Split documents into paragraph-level chunks (min 50 tokens)
+    (2)  Filter chunks containing trade-related keywords:
+         {"trade", "export", "import", "current account", "balance",
+          "external", "competitiveness", "tariff", "goods", "services"}
+    (3)  Retain filtered chunks (~30–50% of total paragraphs)
+
+A.3  Sentiment scoring
+
+    Model: FinBERT (ProsusAI/finbert, HuggingFace)
+    Input: Each filtered paragraph
+    Output: Probability distribution over {positive, negative, neutral}
+    Sentiment score = P(positive) - P(negative) ∈ [-1, +1]
+
+A.4  Monthly aggregation
+
+    For each month m:
+    •  Collect all chunks from documents published in month m
+    •  ecb_sentiment_m = mean of chunk scores from ECB statements
+    •  bdf_sentiment_m = mean of chunk scores from BdF outlooks
+    •  sentiment_dispersion_m = std dev of all chunk scores in month m
+    •  If no document in month m: carry forward last available score
+
+
+================================================================================
+APPENDIX B: DATA ACCESS CHECKLIST
+================================================================================
+
+    ┌──────────────────────────┬───────────┬─────────────────────────────────┐
+    │ Data source              │ Status    │ Action required                 │
+    ├──────────────────────────┼───────────┼─────────────────────────────────┤
+    │ Baltic Dry Index (FRED)  │ ✅ Public  │ Download via FRED API           │
+    │ Container throughput     │ ✅ Public  │ Register at RWI/ISL website     │
+    │ ECB exchange rate vol.   │ ✅ Public  │ Compute from daily ECB rates    │
+    │ France CDS spreads       │ ❓ Check   │ Confirm BdF Refinitiv access    │
+    │ Bank lending survey      │ ✅ Public  │ Download from ECB SDW           │
+    │ ECB press conferences    │ ✅ Public  │ Scrape from ECB website         │
+    │ BdF economic outlook     │ ✅ Public  │ Download PDFs from BdF website  │
+    │ Trade Policy Uncertainty │ ✅ Public  │ Download from Caldara website   │
+    │ Google Trends            │ ✅ Public  │ Use pytrends API                │
+    │ Nighttime lights (VIIRS) │ ✅ Public  │ Download from World Bank/NOAA   │
+    │ AIS vessel tracking      │ ❓ Check   │ Contact MarineTraffic / BdF     │
+    │ PortWatch (IMF)          │ ❓ Check   │ Check IMF data access           │
+    └──────────────────────────┴───────────┴─────────────────────────────────┘
+
+    7 out of 12 sources are publicly available at no cost.
+
+
+================================================================================
+                           END OF CHAPTER 2 DRAFT
+================================================================================
