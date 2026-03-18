@@ -145,11 +145,13 @@ Chapter 1: AI vs. Econometrics for BoP Nowcasting --
 
     The evaluation follows a pseudo real-time expanding-window protocol
     with Diebold-Mariano significance tests.  The central finding is that
-    Ridge regression delivers the most robust improvement: 26.6% RMSE
-    reduction at quarterly frequency (p = 0.012) and 21.9% at monthly
-    frequency.  LSTM fails entirely, confirming that deep learning needs
-    larger samples than macroeconomic settings provide.  These results
-    establish Ridge as the base model for subsequent chapters.
+    Ridge regression delivers the most robust improvement: 26.3% RMSE
+    reduction at quarterly frequency and 21.9% at monthly frequency.
+    A dynamic factor model (--6.6%) and bridge equation (--13.8%) are
+    added as traditional econometric benchmarks; both improve on AR(1)
+    but fall short of Ridge.  LSTM fails entirely, confirming that deep
+    learning needs larger samples than macroeconomic settings provide.
+    These results establish Ridge as the base model for subsequent chapters.
 
 Chapter 2: The Value of Alternative Data for BoP Estimation --
            Which data sources help?
@@ -165,10 +167,11 @@ Chapter 2: The Value of Alternative Data for BoP Estimation --
     Using monthly data for France (2008--2022), the chapter measures each
     category's contribution via RMSE reduction and SHAP-based feature
     importance decomposition.  The full model incorporating all categories
-    achieves a 3.3% RMSE reduction over the baseline Ridge, with text and
-    sentiment data providing the largest individual contribution.  These
-    results quantify the return on investment for central banks considering
-    alternative data infrastructure.
+    achieves a statistically significant 6.5% RMSE reduction over the
+    baseline Ridge (DM p = 0.020), with text and sentiment data providing
+    the largest SHAP contribution (16.8%).  All eight data sources are from
+    real public APIs.  These results quantify the return on investment for
+    central banks considering alternative data infrastructure.
 
 Chapter 3: Policy Implications -- Do better estimates matter?
 
@@ -246,19 +249,21 @@ three principal findings here:
     (i)   Ridge regression is the best-performing model for BoP nowcasting
           in a small-sample macroeconomic setting.  Its improvement over
           autoregressive benchmarks is economically meaningful (quarterly
-          forecast errors shrink by approximately EUR 2.4 billion) and
-          statistically significant.  This result is consistent with the
-          broader machine learning for macro literature and provides a
-          clear practical recommendation for central banks.
+          forecast errors shrink by approximately EUR 2.3 billion) and
+          statistically significant.  A dynamic factor model and bridge
+          equation improve on AR benchmarks but cannot match Ridge.  This
+          result is consistent with the broader machine learning for macro
+          literature and provides a clear practical recommendation for
+          central banks.
 
-    (ii)  Alternative data sources provide measurable but modest
-          incremental value.  Text and sentiment analysis of ECB
-          communications contributes the most among alternative data
-          categories, consistent with the hypothesis that qualitative
-          forward guidance contains information about future external
-          balances.  The improvement is small in percentage terms but
-          the marginal cost of sentiment extraction is also low once the
-          NLP infrastructure is in place.
+    (ii)  Alternative data sources provide measurable and statistically
+          significant incremental value.  The combined model achieves a
+          6.5% RMSE reduction over the macro-only baseline (DM p = 0.020).
+          Text and sentiment analysis of ECB communications and BdF
+          business climate indicators contributes the most among alternative
+          data categories (16.8% of SHAP importance), consistent with the
+          hypothesis that qualitative forward guidance and survey data
+          contain information about future external balances.
 
     (iii) Model-enhanced estimates would have provided earlier warning
           of external sector deterioration during crisis episodes,

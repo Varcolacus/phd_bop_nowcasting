@@ -18,24 +18,25 @@ Can machine learning models improve the accuracy of real-time Balance of
 Payments (BoP) nowcasts compared to standard econometric benchmarks?  Using
 quarterly current account data and monthly goods trade balance data for France
 (2000--2022), we conduct the first systematic horse race between autoregressive
-benchmarks, regularised linear models, tree-based ensemble methods, and a
-recurrent neural network for BoP component estimation.  In a pseudo real-time
-expanding-window evaluation, Ridge regression delivers the most robust
-improvement: a 26.6% RMSE reduction over AR(1) at quarterly frequency
-(statistically significant at 5% via Diebold-Mariano test, p = 0.012) and
-21.9% at monthly frequency.  Gradient Boosting and XGBoost achieve 13--19%
-improvements but lack statistical significance at quarterly frequency due to
-limited out-of-sample observations (n = 51).  At monthly frequency (n = 108),
-all models except LSTM are statistically significant.  LSTM performs at the
-AR(1) level, confirming that deep learning is ill-suited for small
-macroeconomic samples without pre-training.  SHAP analysis reveals that own
-lags and inflation are the dominant predictors, consistent with BoP persistence
-and external competitiveness channels.  These findings establish Ridge
-regression as the preferred base model and motivate the alternative data
-extension in Chapter 2.
+benchmarks, a dynamic factor model (DFM), a bridge equation, regularised
+linear models, tree-based ensemble methods, and a recurrent neural network
+for BoP component estimation.  In a pseudo real-time expanding-window
+evaluation of eight models, Ridge regression delivers the most robust
+improvement: a 26.3% RMSE reduction over AR(1) at quarterly frequency
+(statistically significant at 5% via Diebold-Mariano test).  The bridge
+equation (--13.8%) and Gradient Boosting (--16.8%) rank second and third,
+while the DFM achieves a more modest --6.6%.  XGBoost improves by --14.6%.
+At monthly frequency (n = 108), all models except LSTM are statistically
+significant.  LSTM performs at the AR(1) level, confirming that deep learning
+is ill-suited for small macroeconomic samples without pre-training.  SHAP
+analysis reveals that own lags and inflation are the dominant predictors,
+consistent with BoP persistence and external competitiveness channels.  These
+findings establish Ridge regression as the preferred base model and motivate
+the alternative data extension in Chapter 2.
 
 Keywords: Balance of Payments, Nowcasting, Machine Learning, Ridge Regression,
-          XGBoost, LSTM, Model Comparison, Diebold-Mariano Test
+          Dynamic Factor Model, Bridge Equation, XGBoost, LSTM, Model
+          Comparison, Diebold-Mariano Test
 
 JEL Codes: C53, C55, F32, E37
 
@@ -123,12 +124,14 @@ Our work intersects three research strands.
 1.4  Preview of results
 
 Ridge regression emerges as the clear winner.  At quarterly frequency, it
-achieves a 26.6% RMSE reduction over AR(1) with a Diebold-Mariano p-value
-of 0.012.  At monthly frequency, the improvement is 21.9%.  Tree-based
-models (XGBoost, Gradient Boosting) achieve 13--19% improvements but are
-not significant at quarterly frequency.  LSTM fails entirely, performing
+achieves a 26.3% RMSE reduction over AR(1).  At monthly frequency, the
+improvement is 21.9%.  Among the newly added econometric benchmarks, the
+bridge equation (--13.8%) outperforms the DFM (--6.6%).  Tree-based models
+(Gradient Boosting --16.8%, XGBoost --14.6%) are competitive but not
+significant at quarterly frequency.  LSTM fails entirely, performing
 worse than AR(1).  These results establish a clear hierarchy: regularised
-linear > tree-based > autoregressive > deep learning (in this data regime).
+linear > tree-based > bridge > DFM > autoregressive > deep learning
+(in this data regime).
 
 
 ================================================================================
@@ -181,7 +184,7 @@ below use the corrected feature set without leakage.
 
 3.1  Models
 
-We compare six models spanning three methodological classes:
+We compare eight models spanning four methodological classes:
 
     ECONOMETRIC BASELINES:
 
@@ -195,25 +198,42 @@ We compare six models spanning three methodological classes:
         (capturing annual seasonal patterns) and AR(12) for monthly data
         (capturing the annual cycle in trade flows).
 
+    FACTOR / BRIDGE MODELS:
+
+    (3) Dynamic Factor Model (DFM): A PCA-based two-step approach
+        following Stock and Watson (2002).  In the first step, principal
+        components are extracted from the standardised predictor matrix,
+        retaining two factors.  In the second step, the target is regressed
+        on these factors using OLS with a constant.  DFMs are the workhorse
+        of macroeconomic nowcasting (Giannone et al., 2008) and provide
+        a natural benchmark.
+
+    (4) Bridge Equation: A parsimonious forecasting equation that bridges
+        high-frequency indicators to the low-frequency target, following
+        the approach of Baffigi et al. (2004).  We use forward stepwise
+        variable selection by BIC, retaining at most five predictors, then
+        forecast via OLS.  Bridge equations are widely used in central bank
+        nowcasting practice.
+
     ML / STATISTICAL LEARNING:
 
-    (3) Ridge Regression: L2-regularised linear regression with
+    (5) Ridge Regression: L2-regularised linear regression with
         cross-validated regularisation parameter alpha in {0.01, 0.1,
         1.0, 10.0, 100.0}.  Ridge shrinks coefficient magnitudes toward
         zero without setting them exactly to zero, providing a principled
         bias-variance trade-off in low-dimensional settings.
 
-    (4) Gradient Boosting: Scikit-learn's GradientBoostingRegressor with
+    (6) Gradient Boosting: Scikit-learn's GradientBoostingRegressor with
         100 trees, maximum depth 3, and learning rate 0.1.  A sequential
         ensemble that fits residuals iteratively.
 
-    (5) XGBoost: Extreme Gradient Boosting with 100 trees, depth 3, and
+    (7) XGBoost: Extreme Gradient Boosting with 100 trees, depth 3, and
         L1 + L2 regularisation.  Similar to Gradient Boosting but with
         additional regularisation and computational efficiency.
 
     DEEP LEARNING:
 
-    (6) LSTM: Single-layer Long Short-Term Memory network with 32 hidden
+    (8) LSTM: Single-layer Long Short-Term Memory network with 32 hidden
         units, lookback window of 4 quarters (quarterly) or 6 months
         (monthly), trained with Adam optimiser for 100 epochs.  LSTMs
         are designed to capture long-range temporal dependencies.
@@ -266,10 +286,12 @@ impact on model output.
     +------------------+--------+--------+-----------+----------+--------+
     | AR(1)            |  8,913 |  6,965 |   48.0%   | baseline |   --   |
     | AR(4)            |  7,512 |  5,833 |   72.0%   |  -15.7%  |   No   |
-    | Ridge            |  6,538 |  4,945 |   78.0%   |  -26.6%  | Yes *  |
-    | GradientBoosting |  7,562 |  5,690 |   70.0%   |  -15.1%  |   No   |
-    | XGBoost          |  7,671 |  5,990 |   70.0%   |  -13.9%  |   No   |
-    | LSTM             |  8,999 |  6,811 |   36.0%   |   +1.0%  |   No   |
+    | DFM              |  8,328 |  6,732 |   52.0%   |   -6.6%  |   No   |
+    | Bridge           |  7,685 |  5,419 |   76.0%   |  -13.8%  |   No   |
+    | Ridge            |  6,567 |  4,990 |   78.0%   |  -26.3%  | Yes *  |
+    | GradientBoosting |  7,416 |  5,703 |   72.0%   |  -16.8%  |   No   |
+    | XGBoost          |  7,615 |  5,933 |   72.0%   |  -14.6%  |   No   |
+    | LSTM             |  9,000 |  6,813 |   38.0%   |   +1.0%  |   No   |
     +------------------+--------+--------+-----------+----------+--------+
 
     Notes: RMSE and MAE in EUR millions.  Out-of-sample period: 51 quarterly
@@ -279,22 +301,30 @@ impact on model output.
     Key findings (quarterly):
 
     (a) Ridge is the only model whose improvement is statistically significant
-        at 5% (DM p = 0.012).  Its 26.6% RMSE reduction over AR(1) represents
-        an economically meaningful improvement: average quarterly forecast
-        errors shrink by approximately EUR 2.4 billion.
+        at 5%.  Its 26.3% RMSE reduction over AR(1) represents an economically
+        meaningful improvement: average quarterly forecast errors shrink by
+        approximately EUR 2.3 billion.
 
-    (b) Tree-based models improve on AR(1) by 14--16% but test results are
+    (b) Among econometric benchmarks, the bridge equation (--13.8%) clearly
+        outperforms the DFM (--6.6%).  The DFM's modest gain reflects the
+        low dimensionality of the predictor set: with only 9 features, PCA
+        extraction discards signal alongside noise.  The bridge equation's
+        BIC-based variable selection retains the most informative predictors
+        directly, avoiding this loss.
+
+    (c) Tree-based models improve on AR(1) by 15--17% but test results are
         not significant with only 51 OOS observations.  This reflects the
         well-known power problem of the DM test in small samples (Giacomini
         and White, 2006).
 
-    (c) Direction accuracy corroborates the RMSE ranking: Ridge achieves
+    (d) Direction accuracy corroborates the RMSE ranking: Ridge achieves
         78%, meaning it correctly predicts whether the CA improves or
-        deteriorates in nearly four out of five quarters.  AR(1) is at 48%
-        -- effectively a coin flip.
+        deteriorates in nearly four out of five quarters.  The bridge
+        equation is close behind (76%).  AR(1) is at 48% -- effectively
+        a coin flip.
 
-    (d) LSTM performs at the AR(1) level (RMSE +1.0%) with the worst
-        direction accuracy (36%).  With 91 total observations and a
+    (e) LSTM performs at the AR(1) level (RMSE +1.0%) with the worst
+        direction accuracy (38%).  With 91 total observations and a
         minimal architecture of 32 hidden units (~4,500 parameters), the
         network cannot learn meaningful temporal patterns.
 
@@ -374,12 +404,20 @@ impact on model output.
 5.  DISCUSSION
 ================================================================================
 
-5.1  Why does Ridge outperform tree-based models?
+5.1  Why does Ridge outperform all other models?
 
 With only 9 features and 51--108 OOS observations, the data environment is
 low-dimensional and small-sample -- exactly where regularised linear models
 excel.  Ridge's L2 penalty provides optimal shrinkage when true relationships
 are approximately linear and the feature space is low-dimensional.
+
+The bridge equation (--13.8%) performs well because BIC-based variable
+selection identifies the most informative subset of predictors.  However,
+it discards potentially useful information from excluded variables, whereas
+Ridge retains all features with shrunken coefficients.  The DFM (--6.6%)
+underperforms because PCA factor extraction is designed for large predictor
+panels; with only 9 features, the two extracted factors capture a mixture
+of signal and noise.
 
 Tree-based models (XGBoost, Gradient Boosting) can capture nonlinearities,
 but with so few training examples they tend to overfit splitting decisions.
@@ -500,11 +538,13 @@ This paper presents the first systematic comparison of machine learning
 and econometric approaches for Balance of Payments nowcasting.  Using
 quarterly current account and monthly goods trade balance data for France, we
 find that Ridge regression delivers the most robust improvement over
-autoregressive benchmarks: 26.6% RMSE reduction at quarterly frequency
-(statistically significant, DM p = 0.012) and 21.9% at monthly frequency.
-Tree-based models achieve 13--19% improvements but require larger samples
-for significance.  LSTM fails entirely, confirming that deep learning is
-unsuitable for macroeconomic samples of this size without pre-training.
+autoregressive benchmarks: 26.3% RMSE reduction at quarterly frequency
+(statistically significant) and 21.9% at monthly frequency.  Among
+traditional econometric alternatives, the bridge equation (--13.8%)
+outperforms the DFM (--6.6%), while tree-based models achieve 15--17%
+improvements but require larger samples for significance.  LSTM fails
+entirely, confirming that deep learning is unsuitable for macroeconomic
+samples of this size without pre-training.
 
 These results have three practical implications.  First, central banks and
 statistical offices seeking to implement BoP nowcasting should start with
@@ -523,6 +563,9 @@ REFERENCES
 Babii, A., Ghysels, E., & Striaukas, J. (2022). Machine Learning Time Series
     Regressions with an Application to Nowcasting. Journal of Business &
     Economic Statistics, 40(3), 1094--1106.
+
+Baffigi, A., Golinelli, R., & Parigi, G. (2004). Bridge Models to Forecast
+    the Euro Area GDP. International Journal of Forecasting, 20(3), 447--460.
 
 Banbura, M., Giannone, D., & Reichlin, L. (2010). Large Bayesian VARs.
     Journal of Applied Econometrics, 25(1), 71--92.
@@ -568,3 +611,7 @@ Lundberg, S.M. & Lee, S.-I. (2017). A Unified Approach to Interpreting Model
 Medeiros, M.C., Vasconcelos, G.F.R., Veiga, A., & Zilberman, E. (2021).
     Forecasting Inflation in a Data-Rich Environment. Journal of Applied
     Econometrics, 36(4), 527--544.
+
+Stock, J. H. & Watson, M. W. (2002). Macroeconomic Forecasting Using
+    Diffusion Indexes. Journal of Business & Economic Statistics, 20(2),
+    147--162.

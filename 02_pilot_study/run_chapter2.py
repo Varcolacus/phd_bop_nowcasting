@@ -130,7 +130,8 @@ def prepare_baseline_features(df, target="trade_goods"):
 CATEGORY_A = ["bdi", "cti"]
 CATEGORY_B = ["fx_vol", "cds_spread"]
 CATEGORY_C = ["tpu", "gtrends_export", "gtrends_import",
-              "ecb_sentiment", "sentiment_dispersion"]
+              "ecb_sentiment", "sentiment_dispersion",
+              "bdf_sentiment", "bdf_momentum"]
 CATEGORY_D = ["ntl"]
 
 SPECIFICATIONS = {
@@ -601,9 +602,89 @@ def main():
                         row["xgboost_gw_p"] = gw_p
 
     # ---------------------------------------------------------------
-    # Phase 8: SHAP category decomposition
+    # Phase 7b: Robustness checks
     # ---------------------------------------------------------------
-    if HAS_SHAP:
+    print("\n" + "=" * 70)
+    print("  ROBUSTNESS CHECKS")
+    print("=" * 70)
+
+    robustness_rows = []
+
+    # (a) Different minimum training windows
+    for win in [45, 75, 90]:
+        print(f"\n  --- Window = {win} months ---")
+        for spec_name in ["M0", "M5"]:
+            alt_features = SPECIFICATIONS[spec_name]
+            models_r = ablation_expanding_window(
+                df, target_col, baseline_features, alt_features,
+                min_train_size=win, step=1
+            )
+            for mname in ["Ridge", "XGBoost"]:
+                rmse = models_r.get(mname, ForecastResult("")).rmse
+                if rmse:
+                    robustness_rows.append({
+                        "check": f"window_{win}",
+                        "specification": spec_name,
+                        "model": mname,
+                        "rmse": rmse,
+                    })
+                    print(f"    {spec_name} {mname}: RMSE = {rmse:,.0f}")
+
+    # (b) Crisis subsample evaluation — evaluate only on crisis periods
+    crisis_periods = {
+        "GFC": ("2008-09-01", "2009-06-30"),
+        "Euro_Crisis": ("2011-06-01", "2012-06-30"),
+        "COVID": ("2020-03-01", "2021-03-31"),
+        "Energy_Crisis": ("2022-01-01", "2022-12-31"),
+    }
+
+    for crisis_name, (c_start, c_end) in crisis_periods.items():
+        c_start_dt = pd.Timestamp(c_start)
+        c_end_dt = pd.Timestamp(c_end)
+        n_crisis = df[(df["date"] >= c_start_dt) & (df["date"] <= c_end_dt)].shape[0]
+        if n_crisis < 3:
+            continue
+
+        print(f"\n  --- Crisis: {crisis_name} ({n_crisis} obs) ---")
+
+        for spec_name in ["M0", "M5"]:
+            if spec_name not in all_results:
+                continue
+            mods = all_results[spec_name]
+            for mname in ["Ridge", "XGBoost"]:
+                res = mods.get(mname)
+                if res is None or res.rmse is None:
+                    continue
+                # Filter predictions to crisis period
+                preds_crisis, acts_crisis = [], []
+                for i, d in enumerate(res.dates):
+                    dt = pd.Timestamp(d)
+                    if c_start_dt <= dt <= c_end_dt:
+                        p = res.predictions[i]
+                        a = res.actuals[i]
+                        if not np.isnan(p) and not np.isnan(a):
+                            preds_crisis.append(p)
+                            acts_crisis.append(a)
+                if len(preds_crisis) >= 2:
+                    from sklearn.metrics import mean_squared_error as _mse
+                    crisis_rmse = np.sqrt(_mse(acts_crisis, preds_crisis))
+                    robustness_rows.append({
+                        "check": f"crisis_{crisis_name}",
+                        "specification": spec_name,
+                        "model": mname,
+                        "rmse": crisis_rmse,
+                    })
+                    print(f"    {spec_name} {mname}: RMSE = {crisis_rmse:,.0f}")
+
+    if robustness_rows:
+        pd.DataFrame(robustness_rows).to_csv(
+            CH2_OUTPUT / "robustness_results.csv", index=False
+        )
+        print(f"\n  Robustness results saved to {CH2_OUTPUT / 'robustness_results.csv'}")
+
+    # ---------------------------------------------------------------
+    # Phase 8: SHAP category decomposition
+    # ---------------------------------------------------------------    if HAS_SHAP:
         print("\n" + "=" * 60)
         print("  SHAP CATEGORY DECOMPOSITION (M5)")
         print("=" * 60)

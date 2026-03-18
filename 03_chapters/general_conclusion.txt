@@ -18,31 +18,30 @@ chapters provide complementary answers to this question.
 
 Chapter 1 established that Ridge regression -- a simple regularised linear
 model -- delivers the most robust improvement over autoregressive benchmarks
-for BoP nowcasting.  The 26.6% RMSE reduction at quarterly frequency (DM
-p = 0.012) and 21.9% at monthly frequency represent economically meaningful
-gains: average quarterly forecast errors shrink by approximately EUR 2.4
-billion.  Crucially, more complex models do not outperform Ridge in this
-data regime.  Tree-based ensembles (XGBoost, Gradient Boosting) achieve
-13--19% improvements but lack statistical significance at quarterly
-frequency due to limited out-of-sample observations.  LSTM fails entirely,
-performing at or below the AR(1) level, confirming that deep learning
-models require far larger datasets than macroeconomic applications
-typically provide.
+for BoP nowcasting.  The 26.3% RMSE reduction at quarterly frequency and
+21.9% at monthly frequency represent economically meaningful gains: average
+quarterly forecast errors shrink by approximately EUR 2.3 billion.
+Crucially, more complex models do not outperform Ridge in this data regime.
+A dynamic factor model (--6.6%) and bridge equation (--13.8%) improve on
+AR(1) but fall short of Ridge, while tree-based ensembles (Gradient Boosting
+--16.8%, XGBoost --14.6%) are competitive but lack statistical significance
+at quarterly frequency.  LSTM fails entirely, performing at or below the
+AR(1) level, confirming that deep learning models require far larger
+datasets than macroeconomic applications typically provide.
 
 Chapter 2 quantified the incremental value of alternative data sources.
 Through a structured ablation study, we found that adding four categories
 of alternative data -- trade-activity proxies (BDI, container throughput),
-financial-flow indicators (exchange rate volatility, CDS spreads),
-text/sentiment analysis (FinBERT on ECB communications, geopolitical
-risk, Google Trends), and satellite/geospatial proxies (nighttime light
-intensity) -- produces a combined RMSE reduction of 3.3% over the
-baseline Ridge model.  Text and sentiment data contribute the largest
-individual marginal gain.  SHAP decomposition reveals that baseline
-macroeconomic features still account for approximately 69% of total
-predictive power, with alternative data categories collectively
-contributing the remaining 31%.  While modest in percentage terms, this
-improvement comes at low marginal cost once the data infrastructure is
-established.
+financial-flow indicators (exchange rate volatility, FR-DE bond spread),
+text/sentiment analysis (FinBERT on ECB communications, BdF Business
+Climate Indicator, geopolitical risk, Google Trends), and satellite/
+geospatial proxies (nighttime light intensity) -- produces a statistically
+significant combined RMSE reduction of 6.5% over the baseline Ridge
+model (DM p = 0.020).  SHAP decomposition reveals that baseline
+macroeconomic features account for approximately 63% of total predictive
+power, with alternative data categories collectively contributing the
+remaining 37% -- led by text/sentiment data (16.8%).  All eight data
+sources are from real public APIs, ensuring reproducibility.
 
 Chapter 3 connected these statistical improvements to policy relevance.
 Cross-country analysis (France, Germany, Italy, Spain) demonstrated that
@@ -73,10 +72,13 @@ This thesis makes three main contributions to the literature:
           alternative data for BoP estimation.  By testing each data
           category in isolation and in combination, we provide central
           banks with actionable evidence on where to invest data
-          infrastructure resources.  The finding that NLP-based sentiment
-          analysis provides the highest marginal return per unit of
-          implementation cost is directly relevant for institutions
-          considering text analytics capabilities.
+          infrastructure resources.  The finding that text/sentiment
+          analysis -- combining FinBERT-based ECB communication scoring
+          with the BdF Business Climate Indicator -- provides the highest
+          SHAP importance share (16.8%) is directly relevant for
+          institutions considering text analytics and survey data
+          capabilities.  The combined model's statistical significance
+          (DM p = 0.020) strengthens the case for implementation.
 
     (iii) Policy-oriented: a framework for translating forecast accuracy
           into policy-relevant metrics.  Most of the nowcasting literature

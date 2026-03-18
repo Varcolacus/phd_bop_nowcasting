@@ -186,11 +186,90 @@ def generate_synthetic_fx_vol(date_range):
 
 def download_france_cds():
     """
-    France CDS spread - requires Bloomberg/Refinitiv terminal.
-    Returns None; synthetic fallback used.
+    France sovereign risk proxy: FR-DE 10Y government bond yield spread.
+    Both yields are public from ECB (FM dataset).
+    This replaces CDS which requires Bloomberg/Refinitiv terminal access.
+    Returns monthly DataFrame(date, cds_spread) or None.
     """
-    print("  [CDS] France CDS spread (synthetic - requires terminal access)")
-    return None
+    print("  [CDS] FR-DE 10Y bond spread from ECB (sovereign risk proxy)...")
+    try:
+        # France 10Y government bond yield (monthly)
+        csv_fr = ecb_download_series("FM", "M.FR.EUR.FR2.BB.FR10YT_RR.HSTA", start_period="2000")
+        # Germany 10Y government bond yield (monthly)
+        csv_de = ecb_download_series("FM", "M.DE.EUR.FR2.BB.DE10YT_RR.HSTA", start_period="2000")
+
+        if csv_fr is None or csv_de is None:
+            # Alternative series keys
+            csv_fr = ecb_download_series("FM", "M.FR.EUR.FR2.BB.FR10YT_RR.AVR", start_period="2000")
+            csv_de = ecb_download_series("FM", "M.DE.EUR.FR2.BB.DE10YT_RR.AVR", start_period="2000")
+
+        if csv_fr is None or csv_de is None:
+            print("    [WARN] ECB bond yield download failed, trying FRED...")
+            return _download_cds_from_fred()
+
+        df_fr = pd.read_csv(StringIO(csv_fr))
+        df_de = pd.read_csv(StringIO(csv_de))
+
+        for df_tmp, label in [(df_fr, "FR"), (df_de, "DE")]:
+            if "TIME_PERIOD" not in df_tmp.columns:
+                print(f"    [WARN] {label} yield: missing TIME_PERIOD column")
+                return _download_cds_from_fred()
+
+        fr = df_fr[["TIME_PERIOD", "OBS_VALUE"]].copy()
+        fr.columns = ["date", "fr_yield"]
+        de = df_de[["TIME_PERIOD", "OBS_VALUE"]].copy()
+        de.columns = ["date", "de_yield"]
+
+        for d in [fr, de]:
+            d["date"] = pd.to_datetime(d["date"], errors="coerce")
+            d.iloc[:, 1] = pd.to_numeric(d.iloc[:, 1], errors="coerce")
+
+        merged = fr.merge(de, on="date", how="inner").dropna()
+        merged["cds_spread"] = (merged["fr_yield"] - merged["de_yield"]) * 100  # in basis points
+        result = merged[["date", "cds_spread"]].copy()
+        result = result.sort_values("date").reset_index(drop=True)
+        result.to_csv(ALT_DATA_DIR / "cds_raw.csv", index=False)
+        print(f"    REAL {len(result)} monthly obs (FR-DE 10Y spread, basis points)")
+        return result
+    except Exception as e:
+        print(f"    [WARN] ECB bond spread failed: {e}")
+        return _download_cds_from_fred()
+
+
+def _download_cds_from_fred():
+    """Fallback: France 10Y yield from FRED minus Germany 10Y from FRED."""
+    try:
+        url = "https://fred.stlouisfed.org/graph/fredgraph.csv"
+        # France 10Y
+        resp_fr = requests.get(url, params={"id": "IRLTLT01FRM156N",
+                               "cosd": "2000-01-01", "coed": "2024-12-31"},
+                               timeout=30, verify=VERIFY_SSL)
+        resp_fr.raise_for_status()
+        df_fr = pd.read_csv(StringIO(resp_fr.text))
+        df_fr.columns = ["date", "fr_yield"]
+
+        # Germany 10Y
+        resp_de = requests.get(url, params={"id": "IRLTLT01DEM156N",
+                               "cosd": "2000-01-01", "coed": "2024-12-31"},
+                               timeout=30, verify=VERIFY_SSL)
+        resp_de.raise_for_status()
+        df_de = pd.read_csv(StringIO(resp_de.text))
+        df_de.columns = ["date", "de_yield"]
+
+        for d in [df_fr, df_de]:
+            d["date"] = pd.to_datetime(d["date"])
+            d.iloc[:, 1] = pd.to_numeric(d.iloc[:, 1], errors="coerce")
+
+        merged = df_fr.merge(df_de, on="date", how="inner").dropna()
+        merged["cds_spread"] = (merged["fr_yield"] - merged["de_yield"]) * 100
+        result = merged[["date", "cds_spread"]].copy()
+        result = result.sort_values("date").reset_index(drop=True)
+        result.to_csv(ALT_DATA_DIR / "cds_raw.csv", index=False)
+        print(f"    REAL (FRED) {len(result)} monthly obs (FR-DE 10Y spread, bp)")
+        return result
+    except Exception as e:
+        print(f"    [WARN] FRED bond spread also failed: {e}")
+        return None
 
 
 def generate_synthetic_cds(date_range):

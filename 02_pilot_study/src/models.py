@@ -8,6 +8,9 @@ Implements:
   3. OLS with macro features — traditional econometric approach
   4. Gradient Boosting (scikit-learn) — ML benchmark
   5. XGBoost — primary ML model
+  6. LSTM — recurrent neural network
+  7. DFM — Dynamic Factor Model (Stock & Watson, 2002)
+  8. Bridge — Bridge equation with BIC variable selection (Baffigi et al., 2004)
 
 All models are evaluated using expanding-window pseudo real-time
 out-of-sample forecasting.
@@ -25,6 +28,7 @@ from dataclasses import dataclass, field
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.linear_model import LinearRegression, LassoCV
 from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 import xgboost as xgb
 import statsmodels.api as sm
@@ -234,6 +238,97 @@ def lstm_forecast(X_train, y_train, X_test_row, lookback=4, hidden_size=32,
 
 
 # ---------------------------------------------------------------------------
+# Dynamic Factor Model (Stock & Watson, 2002)
+# ---------------------------------------------------------------------------
+
+def dfm_forecast(X_train, y_train, X_test_row, n_factors=2):
+    """
+    DFM-style nowcasting: extract principal components from the feature
+    matrix, then regress the target on the extracted factors.
+    Follows Stock & Watson (2002) two-step approach.
+    """
+    if len(y_train) < 15:
+        return np.nan
+
+    try:
+        k = min(n_factors, X_train.shape[1], len(y_train) - 2)
+        if k < 1:
+            return np.nan
+
+        pca = PCA(n_components=k)
+        F_train = pca.fit_transform(X_train)
+        F_test = pca.transform(X_test_row.reshape(1, -1))
+
+        F_train_c = sm.add_constant(F_train)
+        # Manually add constant for single-row test data
+        F_test_c = np.hstack([[1.0], F_test.flatten()]).reshape(1, -1)
+
+        model = sm.OLS(y_train, F_train_c).fit()
+        return model.predict(F_test_c)[0]
+    except Exception:
+        return np.nan
+
+
+# ---------------------------------------------------------------------------
+# Bridge Equation (Baffigi et al., 2004)
+# ---------------------------------------------------------------------------
+
+def bridge_forecast(X_train, y_train, X_test_row, max_vars=5):
+    """
+    Bridge equation with forward stepwise variable selection by BIC.
+    Standard central-bank nowcasting approach: select a parsimonious set
+    of high-frequency indicators via information criteria, then OLS.
+    """
+    if len(y_train) < 15:
+        return np.nan
+
+    try:
+        n_features = X_train.shape[1]
+        max_k = min(max_vars, n_features, len(y_train) // 5)
+
+        if max_k < 1:
+            return np.nan
+
+        selected = []
+        remaining = list(range(n_features))
+        best_bic = np.inf
+
+        for _ in range(max_k):
+            best_new_bic = np.inf
+            best_new_var = None
+
+            for var in remaining:
+                candidate = selected + [var]
+                X_cand = sm.add_constant(X_train[:, candidate])
+                try:
+                    m = sm.OLS(y_train, X_cand).fit()
+                    if m.bic < best_new_bic:
+                        best_new_bic = m.bic
+                        best_new_var = var
+                except Exception:
+                    continue
+
+            if best_new_var is not None and best_new_bic < best_bic:
+                selected.append(best_new_var)
+                remaining.remove(best_new_var)
+                best_bic = best_new_bic
+            else:
+                break
+
+        if not selected:
+            return np.nan
+
+        X_sel_train = sm.add_constant(X_train[:, selected])
+        # Manually add constant for single-row test data
+        X_sel_test = np.hstack([[1.0], X_test_row[selected]]).reshape(1, -1)
+
+        model = sm.OLS(y_train, X_sel_train).fit()
+        return model.predict(X_sel_test)[0]
+    except Exception:
+        return np.nan
+
+
+# ---------------------------------------------------------------------------
 # Expanding Window Evaluation
 # ---------------------------------------------------------------------------
 
@@ -283,6 +378,8 @@ def expanding_window_evaluation(df, target_col, feature_cols,
         "AR(1)": ForecastResult("AR(1)"),
         "AR(4)": ForecastResult("AR(4)"),
         "Ridge": ForecastResult("Ridge"),
+        "DFM": ForecastResult("DFM"),
+        "Bridge": ForecastResult("Bridge"),
         "GradientBoosting": ForecastResult("GradientBoosting"),
         "XGBoost": ForecastResult("XGBoost"),
     }
@@ -323,6 +420,18 @@ def expanding_window_evaluation(df, target_col, feature_cols,
         models["Ridge"].predictions.append(pred_ols)
         models["Ridge"].actuals.append(y_test)
         models["Ridge"].dates.append(test_date)
+
+        # --- DFM ---
+        pred_dfm = dfm_forecast(X_train_scaled, y_train, X_test_scaled)
+        models["DFM"].predictions.append(pred_dfm)
+        models["DFM"].actuals.append(y_test)
+        models["DFM"].dates.append(test_date)
+
+        # --- Bridge ---
+        pred_bridge = bridge_forecast(X_train_scaled, y_train, X_test_scaled)
+        models["Bridge"].predictions.append(pred_bridge)
+        models["Bridge"].actuals.append(y_test)
+        models["Bridge"].dates.append(test_date)
 
         # --- Gradient Boosting ---
         pred_gb = gradient_boosting_forecast(X_train_scaled, y_train, X_test_scaled)

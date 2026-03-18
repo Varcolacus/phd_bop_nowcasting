@@ -2,7 +2,7 @@ source,status
 bdi,real
 cti,real
 fx_vol,real
-cds_spread,synthetic
+cds_spread,real
 tpu,real
 gtrends,real
 ntl,real

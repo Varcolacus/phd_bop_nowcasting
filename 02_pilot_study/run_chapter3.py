@@ -21,7 +21,13 @@ Date: March 2026
 """
 
 import sys
+import io
 from pathlib import Path
+
+# Fix Windows cp1252 terminal encoding for Unicode output
+if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
 src_dir = Path(__file__).parent / "src"
 sys.path.insert(0, str(src_dir))
