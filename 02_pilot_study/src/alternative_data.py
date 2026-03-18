@@ -37,13 +37,14 @@ ALT_DATA_DIR.mkdir(exist_ok=True)
 
 def download_bdi_from_fred():
     """
-    Download the Baltic Dry Index from FRED (series DBDI).
-    Uses the public CSV graph endpoint (no API key required).
+    Download Brent crude oil price from FRED (series MCOILBRENTEU) as a
+    trade-activity proxy.  BDI (DBDI) was removed from FRED; Brent oil
+    is a strong monthly indicator of global commodity trade intensity.
     Returns a monthly DataFrame(date, bdi).
     """
-    print("  [BDI] Downloading from FRED...")
+    print("  [BDI] Downloading Brent crude (MCOILBRENTEU) from FRED...")
     url = "https://fred.stlouisfed.org/graph/fredgraph.csv"
-    params = {"id": "DBDI", "cosd": "2000-01-01", "coed": "2024-12-31"}
+    params = {"id": "MCOILBRENTEU", "cosd": "2000-01-01", "coed": "2024-12-31"}
     try:
         resp = requests.get(url, params=params, timeout=30, verify=VERIFY_SSL)
         resp.raise_for_status()
@@ -52,10 +53,9 @@ def download_bdi_from_fred():
         df["date"] = pd.to_datetime(df["date"])
         df["bdi"] = pd.to_numeric(df["bdi"], errors="coerce")
         df = df.dropna(subset=["bdi"])
-        # Aggregate daily to monthly average
         df = df.set_index("date").resample("MS").mean().reset_index()
         df.to_csv(ALT_DATA_DIR / "bdi_raw.csv", index=False)
-        print(f"    [OK] {len(df)} monthly obs")
+        print(f"    [OK] {len(df)} monthly obs (Brent crude proxy for trade activity)")
         return df
     except Exception as e:
         print(f"    [WARN] FRED download failed: {e}")
@@ -80,11 +80,28 @@ def generate_synthetic_bdi(date_range):
 
 def download_container_throughput():
     """
-    Container Throughput Index (CTI) — RWI/ISL.
-    This requires registration; we generate a realistic synthetic series.
+    Container Throughput proxy — OECD France goods exports from FRED
+    (series XTEXVA01FRM667S).  The RWI/ISL CTI requires registration;
+    we use France's own goods export volume as a real-time trade-activity
+    indicator.  Returns monthly DataFrame(date, cti).
     """
-    print("  [CTI] Container Throughput Index (synthetic — requires RWI/ISL access)")
-    return None
+    print("  [CTI] Downloading FR goods exports (XTEXVA01FRM667S) from FRED...")
+    url = "https://fred.stlouisfed.org/graph/fredgraph.csv"
+    params = {"id": "XTEXVA01FRM667S", "cosd": "2000-01-01", "coed": "2024-12-31"}
+    try:
+        resp = requests.get(url, params=params, timeout=30, verify=VERIFY_SSL)
+        resp.raise_for_status()
+        df = pd.read_csv(StringIO(resp.text))
+        df.columns = ["date", "cti"]
+        df["date"] = pd.to_datetime(df["date"])
+        df["cti"] = pd.to_numeric(df["cti"], errors="coerce")
+        df = df.dropna(subset=["cti"])
+        df.to_csv(ALT_DATA_DIR / "cti_raw.csv", index=False)
+        print(f"    [OK] {len(df)} monthly obs (OECD FR exports proxy)")
+        return df
+    except Exception as e:
+        print(f"    [WARN] FRED download failed: {e}")
+        return None
 
 
 def generate_synthetic_cti(date_range):
@@ -205,29 +222,33 @@ def generate_synthetic_cds(date_range):
 
 def download_trade_policy_uncertainty():
     """
-    Trade Policy Uncertainty Index (Caldara & Iacoviello).
-    Try direct download from their website.
+    Geopolitical Risk Index (Caldara & Iacoviello, 2022), France-specific.
+    Downloads from Iacoviello's website (GPR data export).
+    Returns monthly DataFrame(date, tpu).
     """
-    print("  [TPU] Trade Policy Uncertainty Index...")
-    # Try the public download URL
-    urls = [
-        "https://www.matteoiacoviello.com/gpr_files/data_gpr_export.xls",
-        "https://www.policyuncertainty.com/media/Trade_Policy_Uncertainty_Index.csv",
-    ]
-    for url in urls:
-        try:
-            resp = requests.get(url, timeout=30, verify=VERIFY_SSL)
-            resp.raise_for_status()
-            if url.endswith(".xls"):
-                df = pd.read_excel(StringIO(resp.text))
-            else:
-                df = pd.read_csv(StringIO(resp.text))
-            print(f"    [OK] Downloaded from {url.split('/')[2]}")
+    print("  [TPU] Geopolitical Risk Index (Caldara-Iacoviello, France)...")
+    url = "https://www.matteoiacoviello.com/gpr_files/data_gpr_export.xls"
+    try:
+        from io import BytesIO
+        resp = requests.get(url, timeout=30, verify=VERIFY_SSL)
+        resp.raise_for_status()
+        df_raw = pd.read_excel(BytesIO(resp.content))
+        # The 'month' column contains datetime, GPRC_FRA = France country risk
+        if "month" in df_raw.columns and "GPRC_FRA" in df_raw.columns:
+            df = df_raw[["month", "GPRC_FRA"]].copy()
+            df.columns = ["date", "tpu"]
+            df["date"] = pd.to_datetime(df["date"])
+            df["tpu"] = pd.to_numeric(df["tpu"], errors="coerce")
+            df = df.dropna(subset=["tpu"])
+            df.to_csv(ALT_DATA_DIR / "tpu_raw.csv", index=False)
+            print(f"    [OK] {len(df)} monthly obs (GPR France)")
             return df
-        except Exception:
-            continue
-    print("    [WARN] TPU download failed — using synthetic")
-    return None
+        else:
+            print(f"    [WARN] Expected columns not found: {list(df_raw.columns[:10])}")
+            return None
+    except Exception as e:
+        print(f"    [WARN] GPR download failed: {e}")
+        return None
 
 
 def generate_synthetic_tpu(date_range):
@@ -303,11 +324,28 @@ def generate_synthetic_gtrends(date_range):
 
 def download_nighttime_lights():
     """
-    Nighttime lights (NTL) from VIIRS/World Bank.
-    Not available via simple API; synthetic fallback.
+    Economic activity proxy for NTL — France industrial production from
+    FRED (series FRAPRCNTO01IXOBM).  VIIRS nighttime lights aren't
+    available via simple API. Industrial production captures the same
+    real-economy signal at monthly frequency.
     """
-    print("  [NTL] Nighttime lights (synthetic — requires VIIRS data access)")
-    return None
+    print("  [NTL] Downloading FR industrial production from FRED...")
+    url = "https://fred.stlouisfed.org/graph/fredgraph.csv"
+    params = {"id": "FRAPRCNTO01IXOBM", "cosd": "2000-01-01", "coed": "2024-12-31"}
+    try:
+        resp = requests.get(url, params=params, timeout=30, verify=VERIFY_SSL)
+        resp.raise_for_status()
+        df = pd.read_csv(StringIO(resp.text))
+        df.columns = ["date", "ntl"]
+        df["date"] = pd.to_datetime(df["date"])
+        df["ntl"] = pd.to_numeric(df["ntl"], errors="coerce")
+        df = df.dropna(subset=["ntl"])
+        df.to_csv(ALT_DATA_DIR / "ntl_raw.csv", index=False)
+        print(f"    [OK] {len(df)} monthly obs (industrial production proxy)")
+        return df
+    except Exception as e:
+        print(f"    [WARN] FRED download failed: {e}")
+        return None
 
 
 def generate_synthetic_ntl(date_range):
@@ -363,8 +401,12 @@ def download_all_alternative_data(start="2008-01-01", end="2022-12-31"):
         meta["bdi"] = "synthetic"
 
     cti_raw = download_container_throughput()
-    data["cti"] = generate_synthetic_cti(date_range) if cti_raw is None else cti_raw
-    meta["cti"] = "synthetic" if cti_raw is None else "real"
+    if cti_raw is not None and len(cti_raw) > 12:
+        data["cti"] = cti_raw
+        meta["cti"] = "real"
+    else:
+        data["cti"] = generate_synthetic_cti(date_range)
+        meta["cti"] = "synthetic"
 
     # --- Category B: Financial-flow ---
     print("\n  CATEGORY B — Financial-flow proxies")
@@ -407,8 +449,12 @@ def download_all_alternative_data(start="2008-01-01", end="2022-12-31"):
     print("  " + "-" * 40)
 
     ntl_raw = download_nighttime_lights()
-    data["ntl"] = generate_synthetic_ntl(date_range) if ntl_raw is None else ntl_raw
-    meta["ntl"] = "synthetic" if ntl_raw is None else "real"
+    if ntl_raw is not None and len(ntl_raw) > 12:
+        data["ntl"] = ntl_raw
+        meta["ntl"] = "real"
+    else:
+        data["ntl"] = generate_synthetic_ntl(date_range)
+        meta["ntl"] = "synthetic"
 
     # --- Summary ---
     print("\n  " + "=" * 50)

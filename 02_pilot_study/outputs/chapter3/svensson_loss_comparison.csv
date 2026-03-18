@@ -1,0 +1,2 @@
+pi_star,lambda_y,mu,mean_loss_nowcast,mean_loss_lagged,loss_reduction_pct,n_months
+2.0,0.5,0.25,14206.804457385599,14206.986016612263,0.0012779573827448923,237

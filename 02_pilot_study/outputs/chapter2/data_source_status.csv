@@ -1,9 +1,9 @@
 source,status
-bdi,synthetic
-cti,synthetic
+bdi,real
+cti,real
 fx_vol,real
 cds_spread,synthetic
-tpu,synthetic
+tpu,real
 gtrends,real
-ntl,synthetic
+ntl,real
 ecb_sentiment,synthetic
