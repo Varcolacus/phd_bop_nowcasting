@@ -1,5 +1,5 @@
 source,frequency,publication_lag_months,rmse,mae,vs_naive_pct,n_forecasts
-ML Nowcast (Ridge),Monthly,0,1604.3244760748207,1161.968363660065,22.995088537687007,240.0
+ML Nowcast (Ridge),Monthly,0,1671.9778538509927,1201.4440248689673,19.74783871792076,240.0
 AR(1) Benchmark,Monthly,0,2005.7287672310908,,3.7283489460138193,240.0
 Random Walk (Naive),Monthly,0,2083.405390135399,1436.320990237099,0.0,239.0
 IMF WEO (documented),Semi-annual,3,,,,

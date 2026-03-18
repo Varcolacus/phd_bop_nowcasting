@@ -38,7 +38,7 @@ from download_data import (
 from models import (
     ForecastResult, ar_forecast, ols_forecast,
     gradient_boosting_forecast, xgboost_forecast, lstm_forecast,
-    diebold_mariano_test, OUTPUT_DIR,
+    diebold_mariano_test, block_bootstrap_rmse_ci, OUTPUT_DIR,
     HAS_TORCH, HAS_SHAP,
     StandardScaler,
 )
@@ -602,7 +602,83 @@ def main():
                         row["xgboost_gw_p"] = gw_p
 
     # ---------------------------------------------------------------
-    # Phase 7b: Robustness checks
+    # Phase 7b: Bootstrap confidence intervals for ablation
+    # ---------------------------------------------------------------
+    print("\n" + "=" * 70)
+    print("  BOOTSTRAP CONFIDENCE INTERVALS (Ablation vs M0)")
+    print("=" * 70)
+
+    boot_rows = []
+    m0_models = all_results.get("M0", {})
+    m0_ridge = m0_models.get("Ridge", ForecastResult("")) if m0_models else ForecastResult("")
+    if m0_ridge.rmse and len(m0_ridge.dates) > 0:
+        # Date-aligned bootstrap: intersect dates between M0 and each Mk
+        m0_date_idx = {str(d): i for i, d in enumerate(m0_ridge.dates)}
+
+        for spec_name in ["M1", "M2", "M3", "M4", "M5"]:
+            if spec_name not in all_results:
+                continue
+            mk_ridge = all_results[spec_name].get("Ridge")
+            if mk_ridge is None or mk_ridge.rmse is None or len(mk_ridge.dates) == 0:
+                continue
+
+            # Find common dates
+            common_m0, common_mk = [], []
+            for j, d in enumerate(mk_ridge.dates):
+                ds = str(d)
+                if ds in m0_date_idx:
+                    common_m0.append(m0_date_idx[ds])
+                    common_mk.append(j)
+
+            if len(common_m0) < 12:
+                print(f"    {spec_name}: only {len(common_m0)} common dates, skipping")
+                continue
+
+            # Build aligned ForecastResults
+            aligned_bench = ForecastResult("M0_Ridge")
+            aligned_bench.actuals = [m0_ridge.actuals[i] for i in common_m0]
+            aligned_bench.predictions = [m0_ridge.predictions[i] for i in common_m0]
+            aligned_bench.rmse = m0_ridge.rmse
+
+            aligned_model = ForecastResult(f"{spec_name}_Ridge")
+            aligned_model.actuals = [mk_ridge.actuals[i] for i in common_mk]
+            aligned_model.predictions = [mk_ridge.predictions[i] for i in common_mk]
+            aligned_model.rmse = mk_ridge.rmse
+
+            virtual = {"M0_Ridge": aligned_bench, f"{spec_name}_Ridge": aligned_model}
+
+            try:
+                boot_df = block_bootstrap_rmse_ci(
+                    virtual, benchmark="M0_Ridge",
+                    n_boot=1000, block_length=6, seed=42
+                )
+            except Exception as e:
+                print(f"    {spec_name}: bootstrap error: {e}")
+                continue
+            if not boot_df.empty:
+                row = boot_df.iloc[0]
+                ci_str = f"[{row['ci_lower']:+.1f}, {row['ci_upper']:+.1f}]"
+                print(f"  {spec_name:<15} {row['pct_improvement']:>+8.1f}% {ci_str:>20}")
+                boot_rows.append({
+                    "specification": spec_name,
+                    "pct_vs_m0": row["pct_improvement"],
+                    "ci_lower": row["ci_lower"],
+                    "ci_upper": row["ci_upper"],
+                })
+
+        if boot_rows:
+            print(f"\n  {'Spec':<15} {'% vs M0':>10} {'95% CI':>20}")
+            print("  " + "-" * 50)
+            for r in boot_rows:
+                ci_str = f"[{r['ci_lower']:+.1f}, {r['ci_upper']:+.1f}]"
+                print(f"  {r['specification']:<15} {r['pct_vs_m0']:>+8.1f}% {ci_str:>20}")
+            pd.DataFrame(boot_rows).to_csv(
+                CH2_OUTPUT / "bootstrap_ci_ablation.csv", index=False
+            )
+            print(f"\n  Saved bootstrap_ci_ablation.csv")
+
+    # ---------------------------------------------------------------
+    # Phase 7c: Robustness checks
     # ---------------------------------------------------------------
     print("\n" + "=" * 70)
     print("  ROBUSTNESS CHECKS")

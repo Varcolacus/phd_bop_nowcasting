@@ -46,6 +46,8 @@ try:
 except ImportError:
     HAS_SHAP = False
 
+from scipy import stats as sp_stats
+
 warnings.filterwarnings("ignore")
 
 DATA_DIR = Path(__file__).parent.parent / "data"
@@ -220,14 +222,91 @@ def lstm_forecast(X_train, y_train, X_test_row, lookback=4, hidden_size=32,
         loss_fn = nn.MSELoss()
 
         model.train()
-        for _ in range(epochs):
+        best_loss = float('inf')
+        patience_counter = 0
+        for epoch in range(epochs):
             optimizer.zero_grad()
             pred = model(X_t)
             loss = loss_fn(pred, y_t)
             loss.backward()
             optimizer.step()
 
+            # Early stopping
+            if loss.item() < best_loss - 1e-4:
+                best_loss = loss.item()
+                patience_counter = 0
+            else:
+                patience_counter += 1
+                if patience_counter >= 15:
+                    break
+
         # Predict: use last `lookback` rows of training features
+        model.eval()
+        with torch.no_grad():
+            x_new = np.vstack([X_train[-(lookback - 1):], X_test_row.reshape(1, -1)])
+            x_new = torch.from_numpy(x_new.astype(np.float32)).unsqueeze(0)
+            return model(x_new).item()
+    except Exception:
+        return np.nan
+
+
+# ---------------------------------------------------------------------------
+# GRU Model (simpler alternative to LSTM)
+# ---------------------------------------------------------------------------
+
+class _GRUNet(nn.Module if HAS_TORCH else object):
+    """GRU network — fewer parameters than LSTM, often works better in small samples."""
+    def __init__(self, input_size, hidden_size=32, dropout=0.1):
+        super().__init__()
+        self.gru = nn.GRU(input_size, hidden_size, batch_first=True, dropout=dropout, num_layers=2)
+        self.fc = nn.Linear(hidden_size, 1)
+
+    def forward(self, x):
+        out, _ = self.gru(x)
+        return self.fc(out[:, -1, :]).squeeze(-1)
+
+
+def gru_forecast(X_train, y_train, X_test_row, lookback=4, hidden_size=32,
+                 epochs=100, lr=0.005):
+    """GRU 1-step-ahead forecast — simpler recurrent architecture."""
+    if not HAS_TORCH:
+        return np.nan
+    if len(y_train) < lookback + 10:
+        return np.nan
+
+    try:
+        X_seq, y_seq = [], []
+        for i in range(lookback, len(y_train)):
+            X_seq.append(X_train[i - lookback:i])
+            y_seq.append(y_train[i])
+        X_seq = np.array(X_seq, dtype=np.float32)
+        y_seq = np.array(y_seq, dtype=np.float32)
+
+        X_t = torch.from_numpy(X_seq)
+        y_t = torch.from_numpy(y_seq)
+
+        model = _GRUNet(X_train.shape[1], hidden_size)
+        optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=1e-4)
+        loss_fn = nn.MSELoss()
+
+        model.train()
+        best_loss = float('inf')
+        patience_counter = 0
+        for epoch in range(epochs):
+            optimizer.zero_grad()
+            pred = model(X_t)
+            loss = loss_fn(pred, y_t)
+            loss.backward()
+            optimizer.step()
+
+            if loss.item() < best_loss - 1e-4:
+                best_loss = loss.item()
+                patience_counter = 0
+            else:
+                patience_counter += 1
+                if patience_counter >= 15:
+                    break
+
         model.eval()
         with torch.no_grad():
             x_new = np.vstack([X_train[-(lookback - 1):], X_test_row.reshape(1, -1)])
@@ -385,6 +464,7 @@ def expanding_window_evaluation(df, target_col, feature_cols,
     }
     if HAS_TORCH:
         models["LSTM"] = ForecastResult("LSTM")
+        models["GRU"] = ForecastResult("GRU")
 
     # Scale features for ML models
     scaler = StandardScaler()
@@ -451,6 +531,13 @@ def expanding_window_evaluation(df, target_col, feature_cols,
             models["LSTM"].predictions.append(pred_lstm)
             models["LSTM"].actuals.append(y_test)
             models["LSTM"].dates.append(test_date)
+
+        # --- GRU ---
+        if HAS_TORCH and "GRU" in models:
+            pred_gru = gru_forecast(X_train_scaled, y_train, X_test_scaled)
+            models["GRU"].predictions.append(pred_gru)
+            models["GRU"].actuals.append(y_test)
+            models["GRU"].dates.append(test_date)
 
     # Compute metrics
     for name, res in models.items():
@@ -526,6 +613,92 @@ def diebold_mariano_test(e1, e2, h=1):
     p_value = 2 * (1 - stats.t.cdf(abs(dm_stat), df=n - 1))
 
     return dm_stat, p_value
+
+
+# ---------------------------------------------------------------------------
+# Bootstrap Confidence Intervals (Künsch, 1989 block bootstrap)
+# ---------------------------------------------------------------------------
+
+def block_bootstrap_rmse_ci(models, benchmark="AR(1)", n_boot=1000,
+                             block_length=4, alpha=0.05, seed=42):
+    """
+    Compute block bootstrap confidence intervals for RMSE improvements
+    vs. a benchmark model (Künsch, 1989).
+
+    Parameters:
+    -----------
+    models : dict of ForecastResult objects
+    benchmark : str, name of the benchmark model
+    n_boot : int, number of bootstrap replications
+    block_length : int, block length for temporal dependence
+    alpha : float, significance level (two-sided)
+    seed : int, random seed
+
+    Returns:
+    --------
+    DataFrame with model, pct_improvement, ci_lower, ci_upper
+    """
+    rng = np.random.RandomState(seed)
+
+    bench_res = models.get(benchmark)
+    if bench_res is None or bench_res.rmse is None:
+        return pd.DataFrame()
+
+    bench_errors = np.array(bench_res.actuals) - np.array(bench_res.predictions)
+    bench_valid = ~np.isnan(bench_errors)
+    n = bench_valid.sum()
+
+    if n < block_length * 2:
+        return pd.DataFrame()
+
+    rows = []
+    for name, res in models.items():
+        if name == benchmark or res.rmse is None:
+            continue
+
+        model_errors = np.array(res.actuals) - np.array(res.predictions)
+        model_valid = ~np.isnan(model_errors)
+        both_valid = bench_valid & model_valid
+
+        e_bench = bench_errors[both_valid]
+        e_model = model_errors[both_valid]
+        n_valid = len(e_bench)
+
+        if n_valid < block_length * 2:
+            continue
+
+        # Block bootstrap
+        n_blocks = int(np.ceil(n_valid / block_length))
+        boot_ratios = []
+
+        for _ in range(n_boot):
+            # Sample block starting indices
+            starts = rng.randint(0, n_valid - block_length + 1, size=n_blocks)
+            idx = np.concatenate([np.arange(s, s + block_length) for s in starts])[:n_valid]
+
+            boot_bench = e_bench[idx]
+            boot_model = e_model[idx]
+
+            rmse_bench = np.sqrt(np.mean(boot_bench ** 2))
+            rmse_model = np.sqrt(np.mean(boot_model ** 2))
+
+            if rmse_bench > 0:
+                boot_ratios.append((rmse_model - rmse_bench) / rmse_bench * 100)
+
+        if boot_ratios:
+            boot_ratios = np.array(boot_ratios)
+            ci_lo = np.percentile(boot_ratios, 100 * alpha / 2)
+            ci_hi = np.percentile(boot_ratios, 100 * (1 - alpha / 2))
+            pct_imp = (res.rmse - bench_res.rmse) / bench_res.rmse * 100
+
+            rows.append({
+                "model": name,
+                "pct_improvement": round(pct_imp, 1),
+                "ci_lower": round(ci_lo, 1),
+                "ci_upper": round(ci_hi, 1),
+            })
+
+    return pd.DataFrame(rows)
 
 
 # ---------------------------------------------------------------------------
@@ -767,6 +940,24 @@ def main():
 
     # Save results
     save_results(models)
+
+    # --- Bootstrap Confidence Intervals ---
+    print("\n" + "=" * 70)
+    print("  BOOTSTRAP CONFIDENCE INTERVALS (Block Bootstrap, B=1000)")
+    print("=" * 70)
+    try:
+        boot_df = block_bootstrap_rmse_ci(models, benchmark="AR(1)",
+                                           n_boot=1000, block_length=4)
+        if not boot_df.empty:
+            print(f"\n  {'Model':<20} {'% vs AR(1)':>12} {'95% CI':>20}")
+            print("  " + "-" * 54)
+            for _, row in boot_df.iterrows():
+                ci_str = f"[{row['ci_lower']:+.1f}, {row['ci_upper']:+.1f}]"
+                print(f"  {row['model']:<20} {row['pct_improvement']:>+10.1f}% {ci_str:>20}")
+            boot_df.to_csv(OUTPUT_DIR / "bootstrap_ci.csv", index=False)
+            print(f"\n  Saved bootstrap_ci.csv")
+    except Exception as e:
+        print(f"  [WARN] Bootstrap CI failed: {e}")
 
     # --- SHAP Feature Importance ---
     if HAS_SHAP:

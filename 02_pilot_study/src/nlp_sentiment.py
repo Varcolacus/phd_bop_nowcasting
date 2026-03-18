@@ -276,6 +276,34 @@ def aggregate_sentiment_monthly(statement_scores):
 
 
 # =====================================================================
+# PDF text extraction helper
+# =====================================================================
+
+def _extract_text_from_pdf(pdf_bytes):
+    """Extract text from a PDF document (ECB monetary policy decisions)."""
+    # Try pdfplumber first (best quality), then PyPDF2
+    try:
+        import pdfplumber
+        from io import BytesIO
+        with pdfplumber.open(BytesIO(pdf_bytes)) as pdf:
+            pages_text = [page.extract_text() or "" for page in pdf.pages]
+        return "\n".join(pages_text)
+    except ImportError:
+        pass
+
+    try:
+        from PyPDF2 import PdfReader
+        from io import BytesIO
+        reader = PdfReader(BytesIO(pdf_bytes))
+        pages_text = [page.extract_text() or "" for page in reader.pages]
+        return "\n".join(pages_text)
+    except ImportError:
+        pass
+
+    return ""
+
+
+# =====================================================================
 # Full NLP pipeline
 # =====================================================================
 
@@ -311,33 +339,66 @@ def run_nlp_pipeline(start_year=2008, end_year=2022):
     # to discover actual URLs including hashes for post-2015 documents
     discovered_urls = {}
     for yr in range(start_year, end_year + 1):
-        try:
-            archive_url = (
-                f"https://www.ecb.europa.eu/press/pressconf/{yr}"
-                "/html/index.en.html"
-            )
-            resp = requests.get(archive_url, timeout=15, verify=False,
-                                headers={"User-Agent": "Mozilla/5.0"})
-            if resp.status_code == 200:
-                soup = BeautifulSoup(resp.text, "lxml")
-                links = soup.find_all("a", href=True)
-                for link in links:
-                    href = link["href"]
-                    if "/is" in href and href.endswith(".en.html"):
-                        # Extract date from URL
-                        for date, date_str in statement_dates:
-                            if date.year == yr:
-                                yy = f"{date.year % 100:02d}"
-                                mm = f"{date.month:02d}"
-                                dd = f"{date.day:02d}"
-                                if f"is{yy}{mm}{dd}" in href or f"is{date.year}{mm}{dd}" in href:
-                                    full_url = href if href.startswith("http") else f"https://www.ecb.europa.eu{href}"
-                                    discovered_urls[date_str] = full_url
-        except Exception:
-            pass
+        for section in ["pressconf", "pr/date"]:
+            try:
+                if section == "pressconf":
+                    archive_url = (
+                        f"https://www.ecb.europa.eu/press/pressconf/{yr}"
+                        "/html/index.en.html"
+                    )
+                else:
+                    archive_url = (
+                        f"https://www.ecb.europa.eu/press/pr/date/{yr}"
+                        "/html/index.en.html"
+                    )
+                resp = requests.get(archive_url, timeout=15, verify=False,
+                                    headers={"User-Agent": "Mozilla/5.0"})
+                if resp.status_code == 200:
+                    soup = BeautifulSoup(resp.text, "lxml")
+                    links = soup.find_all("a", href=True)
+                    for link in links:
+                        href = link["href"]
+                        if href.endswith(".en.html"):
+                            for date, date_str in statement_dates:
+                                if date.year == yr:
+                                    yy = f"{date.year % 100:02d}"
+                                    mm = f"{date.month:02d}"
+                                    dd = f"{date.day:02d}"
+                                    yyyymmdd = f"{date.year}{mm}{dd}"
+                                    # Match any URL containing this date's identifiers
+                                    if (f"is{yy}{mm}{dd}" in href or
+                                        f"is{yyyymmdd}" in href or
+                                        f"pr{yy}{mm}{dd}" in href or
+                                        f"mp{yy}{mm}{dd}" in href or
+                                        f"mp{yyyymmdd}" in href or
+                                        f"ecb.mp{yy}{mm}{dd}" in href):
+                                        full_url = href if href.startswith("http") else f"https://www.ecb.europa.eu{href}"
+                                        discovered_urls[date_str] = full_url
+            except Exception:
+                pass
 
     if discovered_urls:
         print(f"    Discovered {len(discovered_urls)} URLs from ECB archive pages")
+
+    # --- Also try the ECB press release RSS/search API ---
+    try:
+        search_url = "https://www.ecb.europa.eu/press/pr/html/index.en.html"
+        resp = requests.get(search_url, timeout=15, verify=False,
+                            headers={"User-Agent": "Mozilla/5.0"})
+        if resp.status_code == 200:
+            soup = BeautifulSoup(resp.text, "lxml")
+            for link in soup.find_all("a", href=True):
+                href = link["href"]
+                if "monetary" in href.lower() or "ecb.mp" in href.lower():
+                    for date, date_str in statement_dates:
+                        yy = f"{date.year % 100:02d}"
+                        mm = f"{date.month:02d}"
+                        dd = f"{date.day:02d}"
+                        if f"{yy}{mm}{dd}" in href and date_str not in discovered_urls:
+                            full_url = href if href.startswith("http") else f"https://www.ecb.europa.eu{href}"
+                            discovered_urls[date_str] = full_url
+    except Exception:
+        pass
 
     for date, date_str in statement_dates:
         yy = f"{date.year % 100:02d}"
@@ -357,25 +418,39 @@ def run_nlp_pipeline(start_year=2008, end_year=2022):
             f"https://www.ecb.europa.eu/press/pressconf/{yyyy}/html/is{yy}{mm}{dd}.en.html",
             # Monetary policy decisions (pre-2015 format)
             f"https://www.ecb.europa.eu/press/pr/date/{yyyy}/html/pr{yy}{mm}{dd}.en.html",
-            # Alt date format
+            # Alt date format with full year
             f"https://www.ecb.europa.eu/press/pressconf/{yyyy}/html/is{yyyymmdd}.en.html",
             # Monetary policy decisions (newer format without hash)
             f"https://www.ecb.europa.eu/press/pr/date/{yyyy}/html/ecb.mp{yy}{mm}{dd}.en.html",
+            # Combined statement format (post-2019 switch)
+            f"https://www.ecb.europa.eu/press/pressconf/shared/pdf/ecb.ds{yyyymmdd}.en.pdf",
+            # Monetary policy statement (alternate path)
+            f"https://www.ecb.europa.eu/press/pr/date/{yyyy}/html/ecb.mp{yyyymmdd}.en.html",
+            # Press conference transcript page
+            f"https://www.ecb.europa.eu/press/pressconf/{yyyy}/html/ecb.is{yyyymmdd}.en.html",
+            f"https://www.ecb.europa.eu/press/pressconf/{yyyy}/html/ecb.is{yy}{mm}{dd}.en.html",
         ])
 
         for url in urls_to_try:
             try:
                 resp = requests.get(url, timeout=15, verify=False,
                                     headers={"User-Agent": "Mozilla/5.0"})
-                if resp.status_code == 200 and len(resp.text) > 500:
-                    soup = BeautifulSoup(resp.text, "lxml")
-                    content = soup.find("article") or soup.find("div", class_="section") or soup.find("div", id="main-wrapper")
-                    if content:
-                        paras = content.find_all("p")
-                        text = "\n".join(p.get_text(strip=True) for p in paras)
-                        if len(text) > 100:
+                if resp.status_code == 200 and len(resp.content) > 500:
+                    # Handle PDF documents
+                    if url.endswith(".pdf"):
+                        text = _extract_text_from_pdf(resp.content)
+                        if text and len(text) > 100:
                             fetched_texts.append((date, text))
                             break
+                    else:
+                        soup = BeautifulSoup(resp.text, "lxml")
+                        content = soup.find("article") or soup.find("div", class_="section") or soup.find("div", id="main-wrapper")
+                        if content:
+                            paras = content.find_all("p")
+                            text = "\n".join(p.get_text(strip=True) for p in paras)
+                            if len(text) > 100:
+                                fetched_texts.append((date, text))
+                                break
             except Exception:
                 continue
 

@@ -1,0 +1,9 @@
+model,pct_improvement,ci_lower,ci_upper
+AR(4),-15.7,-34.3,0.9
+Ridge,-26.3,-41.2,-16.4
+DFM,-6.6,-15.1,-1.0
+Bridge,-13.8,-39.5,14.0
+GradientBoosting,-16.8,-29.9,-5.8
+XGBoost,-14.6,-28.7,-5.4
+LSTM,1.0,-3.6,3.7
+GRU,0.9,-4.2,3.7

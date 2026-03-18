@@ -1,0 +1,75 @@
+% ===========================================================================
+%  GENERAL INTRODUCTION
+% ===========================================================================
+\chapter*{General Introduction}
+\addcontentsline{toc}{chapter}{General Introduction}
+\markboth{General Introduction}{General Introduction}
+
+\section*{Context and Motivation}
+
+The Balance of Payments (BoP) is one of the most important macroeconomic statistical frameworks.  It records all economic transactions between residents of a country and the rest of the world, covering trade in goods and services, primary and secondary income flows, and financial account transactions.  BoP statistics directly inform major policy decisions: the European Commission's Macroeconomic Imbalance Procedure (MIP) uses current account balances to trigger corrective action; central banks monitor external positions for financial stability risks; and trade negotiators rely on BoP data to assess the impact of commercial policy.
+
+Yet BoP statistics suffer from a fundamental tension between their policy importance and their timeliness.  For France---the focus of this thesis---the quarterly current account balance is published by the Banque de France approximately three months after the end of the reference quarter (\cite{imf2009bpm6}).  Monthly goods trade data are available with a shorter delay (approximately six weeks), but they capture only one component of the current account.  During this publication gap, policymakers must rely on informal estimates, partial indicators, or simple extrapolation.
+
+This tension has grown more acute in recent years for three reasons.
+
+\emph{First}, the frequency and severity of external shocks has increased.  The 2008--09 Global Financial Crisis produced sudden stops in capital flows and rapid current account reversals.  The 2020 COVID-19 pandemic caused an unprecedented collapse in trade volumes within weeks.  The 2022 energy price shock triggered a dramatic deterioration of the Euro-area terms of trade.  In each episode, timely BoP information would have been valuable for calibrating policy responses---but was unavailable when most needed.
+
+\emph{Second}, the proliferation of high-frequency and alternative data sources creates new opportunities for real-time economic monitoring.  Satellite imagery of port congestion, daily vessel tracking data, real-time payment flows, Google search patterns, and natural language processing of central bank communications can all potentially provide early signals about external sector developments.  Whether these data sources actually improve BoP estimation is an empirical question that remains unanswered.
+
+\emph{Third}, advances in machine learning and artificial intelligence have transformed forecasting in many domains---from weather prediction to retail demand---but their application to macroeconomic statistics remains in its infancy, particularly for external sector data.  While a rich literature has emerged on ML for GDP nowcasting \citep{giannone2008nowcasting, banbura2013nowcasting, gouletcoulombe2022how}, there is no comparable body of work for BoP estimation.
+
+This thesis addresses all three challenges.  It develops and evaluates AI-driven methods to improve the timeliness and accuracy of France's Balance of Payments estimates, using both traditional macroeconomic indicators and alternative data sources, and assesses whether the resulting improvements matter for policy.
+
+
+\section*{Literature Positioning}
+
+This thesis sits at the intersection of three research strands.
+
+\subsection*{Macroeconomic Nowcasting}
+
+The modern nowcasting literature begins with \citet{giannone2008nowcasting}, who introduced dynamic factor models for GDP estimation using mixed-frequency data.  \citet{banbura2010large, banbura2013nowcasting} extended this framework to large Bayesian VARs and provided a comprehensive survey of the now-casting methodology.  The key insight is that timely high-frequency indicators (industrial production, surveys, financial variables) contain information about low-frequency aggregates that can be extracted in real time.
+
+\citet{bok2018macroeconomic} survey the state of the art, documenting how central banks worldwide have operationalised nowcasting.  The Federal Reserve Bank of New York's ``Nowcast'', the ECB's ``Euro Area Real-Time GDP'' model, and the Bank of England's suite of nowcasting tools all use variants of this framework.  \citet{doz2012quasi} develop quasi-maximum likelihood methods for large approximate dynamic factor models, while \citet{mariano2003new} and \citet{camacho2013introducing} introduce coincident indicators and short-term prediction models for the Euro area.
+
+However, this literature has focused almost exclusively on GDP and its components (consumption, investment).  External sector statistics---current account, trade balance, financial flows---have received comparatively little attention, despite their importance for policy surveillance \citep{obstfeld2012does}.  This thesis fills this gap.
+
+\subsection*{Machine Learning for Economic Forecasting}
+
+A second literature brings machine learning methods to macroeconomic forecasting.  \citet{gouletcoulombe2022how} provide a definitive assessment, finding that regularised linear models (Ridge, LASSO) often dominate more complex methods in low-dimensional macroeconomic settings.  \citet{babii2022machine} develop theoretical foundations for sparse ML time series regressions.  \citet{medeiros2021forecasting} apply similar methods to inflation forecasting.  \citet{athey2019machine} survey the broader landscape of ML methods for economics, and \citet{varian2014big} discusses the opportunities created by big data for econometric practice.
+
+Key findings from this literature that inform our approach: (i) regularisation is essential when sample sizes are small relative to feature dimensions \citep{hoerl1970ridge, tibshirani1996regression}; (ii) tree-based ensembles (XGBoost, Random Forest) can capture nonlinearities but tend to overfit with fewer than several hundred observations \citep{chen2016xgboost}; (iii) deep learning methods (LSTM, Transformer) generally require much larger samples than macroeconomic settings provide, unless pre-training or transfer learning is employed \citep{hochreiter1997long, lim2021temporal}.
+
+\subsection*{Alternative Data for Economics}
+
+A rapidly growing literature explores non-traditional data sources for economic monitoring.  \citet{woloszko2020tracking} uses Google Trends for real-time activity tracking at the OECD.  \citet{aprigliano2019using} use payment system data to forecast Italian GDP.  \citet{caldara2022measuring} construct geopolitical risk indices from news text.  In the financial domain, FinBERT \citep{araci2019finbert} and similar NLP models extract sentiment from financial communications \citep{shapiro2022measuring, hansen2016shocking}.  \citet{ferrara2022high} examine when Google data are useful for GDP nowcasting via pre-selection and shrinkage.  \citet{choi2012predicting} demonstrate early applications of Google Trends for economic prediction.
+
+For external sector data specifically, the Baltic Dry Index has long been used as a leading indicator for trade, and recent work with AIS vessel tracking and satellite imagery of ports suggests these sources could provide very early signals of trade disruptions \citep{donaldson2016view}.  The contribution of this thesis is to systematically quantify the incremental value of these data categories for BoP estimation.
+
+
+\section*{Research Questions and Thesis Structure}
+
+The thesis is organised as three self-contained essays (\emph{th\`ese sur articles} format), each addressing a distinct research question:
+
+\paragraph{Chapter~1: AI vs.\ Econometrics for BoP Nowcasting --- Which Models Work Best?}
+The first chapter conducts a systematic horse race between econometric and machine learning approaches for BoP nowcasting.  Using quarterly current account and monthly goods trade balance data for France (2000--2022), it compares eight models: autoregressive benchmarks AR(1) and AR(4), a dynamic factor model \citep{stock2002macroeconomic}, a bridge equation \citep{baffigi2004bridge}, Ridge regression, Gradient Boosting, XGBoost, and LSTM.  In a pseudo real-time expanding-window evaluation, Ridge regression delivers the most robust improvement: a~26.3\% RMSE reduction over AR(1) at quarterly frequency (statistically significant at~5\% via \citealt{diebold1995comparing} test).  LSTM fails entirely, confirming that deep learning needs larger samples.
+
+\paragraph{Chapter~2: The Value of Alternative Data --- Which Data Sources Help?}
+Building on Chapter~1's Ridge baseline, the second chapter conducts a structured ablation study to quantify the incremental value of four categories of alternative data: trade-activity proxies, financial-flow indicators, text/sentiment data, and satellite/geospatial proxies.  Using monthly data for France (2008--2022), the full model incorporating all categories achieves a statistically significant~6.5\% RMSE reduction over baseline Ridge (DM $p = 0.020$), with text and sentiment data providing the largest SHAP contribution (16.8\%).  All eight data sources are from real public APIs.
+
+\paragraph{Chapter~3: Policy Implications --- Do Better Estimates Matter?}
+The third chapter bridges the gap between statistical accuracy and policy relevance.  It evaluates nowcast performance during three crisis episodes (GFC, COVID, 2022 energy shock), tests cross-country generalisability across four Eurozone economies (FR, DE, IT, ES), and conducts a counterfactual policy exercise using a Taylor-type reaction function augmented with BoP signals.  The current account gap coefficient $\hat{\delta} = -0.481$ ($p = 0.003$) implies that more accurate real-time BoP estimates would have shifted implied policy rates by up to~159.7 basis points at peak episodes.
+
+
+\section*{Data}
+
+The thesis uses two principal data sources:
+\begin{itemize}
+  \item \textbf{Official statistics:} Quarterly and monthly BoP components from the ECB Statistical Data Warehouse and Eurostat (publicly available).  Standard macroeconomic indicators---GDP, industrial production, HICP, exchange rates, short-term interest rates---are obtained from the same source.
+  \item \textbf{Alternative data:} Eight real data sources from public APIs (FRED, Google Trends, Caldara--Iacoviello website), including the Baltic Dry Index, OECD container throughput, EUR/USD volatility, France--Germany bond spread, ECB FinBERT sentiment, Banque de France Business Climate Indicator, geopolitical risk index, and nighttime light intensity.
+\end{itemize}
+
+
+\section*{Methodology}
+
+All empirical analyses use the expanding-window pseudo real-time evaluation protocol with \citet{diebold1995comparing} tests for statistical significance and \citet{lundberg2017unified} SHAP values for model interpretability.  Bootstrap confidence intervals \citep{efron1979bootstrap, kunsch1989jackknife} provide uncertainty quantification for RMSE improvement estimates.  The evaluation protocol is described in detail in each chapter.
