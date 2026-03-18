@@ -1,0 +1,9 @@
+source,status
+bdi,synthetic
+cti,synthetic
+fx_vol,real
+cds_spread,synthetic
+tpu,synthetic
+gtrends,real
+ntl,synthetic
+ecb_sentiment,synthetic
