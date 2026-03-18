@@ -1,0 +1,229 @@
+================================================================================
+   GENERAL CONCLUSION
+================================================================================
+
+   Artificial Intelligence for Balance of Payments Estimation:
+   Nowcasting, Alternative Data, and Policy Implications
+
+================================================================================
+
+
+1.  Summary of Findings
+================================================================================
+
+This thesis has investigated whether artificial intelligence and machine
+learning methods can improve the timeliness and accuracy of Balance of
+Payments estimation, using France as the primary case study.  The three
+chapters provide complementary answers to this question.
+
+Chapter 1 established that Ridge regression -- a simple regularised linear
+model -- delivers the most robust improvement over autoregressive benchmarks
+for BoP nowcasting.  The 26.6% RMSE reduction at quarterly frequency (DM
+p = 0.012) and 21.9% at monthly frequency represent economically meaningful
+gains: average quarterly forecast errors shrink by approximately EUR 2.4
+billion.  Crucially, more complex models do not outperform Ridge in this
+data regime.  Tree-based ensembles (XGBoost, Gradient Boosting) achieve
+13--19% improvements but lack statistical significance at quarterly
+frequency due to limited out-of-sample observations.  LSTM fails entirely,
+performing at or below the AR(1) level, confirming that deep learning
+models require far larger datasets than macroeconomic applications
+typically provide.
+
+Chapter 2 quantified the incremental value of alternative data sources.
+Through a structured ablation study, we found that adding four categories
+of alternative data -- trade-activity proxies (BDI, container throughput),
+financial-flow indicators (exchange rate volatility, CDS spreads),
+text/sentiment analysis (FinBERT on ECB communications, geopolitical
+risk, Google Trends), and satellite/geospatial proxies (nighttime light
+intensity) -- produces a combined RMSE reduction of 3.3% over the
+baseline Ridge model.  Text and sentiment data contribute the largest
+individual marginal gain.  SHAP decomposition reveals that baseline
+macroeconomic features still account for approximately 69% of total
+predictive power, with alternative data categories collectively
+contributing the remaining 31%.  While modest in percentage terms, this
+improvement comes at low marginal cost once the data infrastructure is
+established.
+
+Chapter 3 connected these statistical improvements to policy relevance.
+Cross-country analysis (France, Germany, Italy, Spain) demonstrated that
+Ridge-based nowcasting generalises well across Eurozone economies.  Crisis
+episode evaluation showed that ML-enhanced estimates would have provided
+earlier warning signals during the 2008 Global Financial Crisis, the 2020
+COVID-19 trade collapse, and the 2022 energy price shock.  The cost-benefit
+framework proposed in the chapter suggests that the investment in ML
+infrastructure is justified by the policy value of earlier detection,
+even when the RMSE improvement appears numerically small.
+
+
+2.  Key Contributions
+================================================================================
+
+This thesis makes three main contributions to the literature:
+
+    (i)   Methodological: the first systematic horse race between
+          econometric and machine learning methods specifically for BoP
+          components.  While GDP nowcasting has been extensively studied
+          (Banbura et al., 2013; Bok et al., 2018; Goulet Coulombe et al.,
+          2022), external sector statistics had not been the subject of a
+          comparable evaluation.  Our dual-frequency design (quarterly
+          current account and monthly goods trade) reveals how sample size
+          critically affects model selection and statistical conclusions.
+
+    (ii)  Empirical: a structured quantification of the value of
+          alternative data for BoP estimation.  By testing each data
+          category in isolation and in combination, we provide central
+          banks with actionable evidence on where to invest data
+          infrastructure resources.  The finding that NLP-based sentiment
+          analysis provides the highest marginal return per unit of
+          implementation cost is directly relevant for institutions
+          considering text analytics capabilities.
+
+    (iii) Policy-oriented: a framework for translating forecast accuracy
+          into policy-relevant metrics.  Most of the nowcasting literature
+          reports RMSE and MAE without asking whether statistical
+          improvements translate into different policy decisions.  Our
+          crisis episode analysis and counterfactual exercises address
+          this gap.
+
+
+3.  Practical Recommendations
+================================================================================
+
+For central banks and statistical offices considering ML adoption for
+external sector monitoring, this thesis offers the following guidance:
+
+    Start with Ridge regression.  It is simple to implement, fast to
+    estimate, fully interpretable, and it outperforms all other methods
+    tested.  The regularisation parameter can be selected by cross-
+    validation and is robust to reasonable variation.
+
+    Invest in NLP capabilities.  Among alternative data sources, FinBERT-
+    based sentiment analysis of central bank communications provides the
+    best return on investment.  ECB press conference transcripts are
+    publicly available; the only investment is in NLP infrastructure and
+    expertise.
+
+    Use higher-frequency data when available.  Our results show that
+    monthly estimation provides both more timely updates and stronger
+    statistical conclusions (due to larger samples) compared to quarterly
+    estimation.  Where daily or weekly indicators are available, MIDAS-
+    type approaches could push timeliness further.
+
+    Deploy expanding-window evaluation as standard practice.  Any
+    operational nowcasting system should be continuously evaluated against
+    AR benchmarks using the expanding-window protocol and Diebold-Mariano
+    tests to ensure that ML improvements are genuine and stable over time.
+
+
+4.  Limitations
+================================================================================
+
+Several limitations should be acknowledged.
+
+    Small sample sizes remain the fundamental constraint.  With 91
+    quarterly or 168 monthly observations for France, all model
+    comparisons face low statistical power.  The Diebold-Mariano test
+    may fail to detect genuine model superiority when out-of-sample
+    periods are short.  Longer historical BoP series (pre-2000) exist
+    but involve methodology breaks (BPM5 to BPM6) that complicate
+    comparability.
+
+    ECB communication coverage is incomplete.  FinBERT sentiment scores
+    could only be computed for a subset of ECB press conferences due to
+    web access constraints.  Full coverage through official ECB data
+    feeds or institutional access would strengthen the text/sentiment
+    results.
+
+    The pseudo real-time evaluation protocol does not fully replicate
+    production conditions.  We do not simulate publication lags, data
+    revisions, or the real-time data vintage problem.  In practice,
+    some predictor variables would arrive with delay, and early releases
+    are subject to revision.  A fully real-time exercise would require
+    maintaining a real-time data archive.
+
+    The LSTM architecture is deliberately minimal.  State-of-the-art
+    architectures (Temporal Fusion Transformers, Informer, PatchTST)
+    with pre-training on multi-country data could potentially improve
+    deep learning performance.  However, this would shift the
+    computational requirements substantially.
+
+    We focus primarily on France with extensions to three comparator
+    countries.  Broader cross-country analysis covering emerging markets,
+    commodity exporters, or small open economies would help assess the
+    generalisability of our findings.
+
+
+5.  Directions for Future Research
+================================================================================
+
+This thesis opens several avenues for future work.
+
+5.1  Mixed-frequency modelling
+
+Combining daily financial indicators (exchange rates, equity prices, CDS
+spreads) with monthly and quarterly BoP targets through MIDAS (Mixed Data
+Sampling) or MF-VAR (Mixed-Frequency VAR) frameworks could improve both
+timeliness and accuracy.  The challenge is determining which high-frequency
+indicators genuinely carry information about external balances, rather
+than adding noise.
+
+5.2  Transfer learning and foundation models
+
+Pre-training on multi-country BoP data (30+ countries, each with 100+
+quarters) could create a "foundation model" for external sector estimation
+that is then fine-tuned on individual country data.  This would address
+the sample size constraint that limits deep learning performance.  Recent
+developments in time series foundation models (e.g., TimesFM, Chronos)
+suggest this approach is technically feasible.
+
+5.3  Real-time data vintages
+
+A fully real-time exercise using archived data vintages would provide the
+most realistic assessment of operational nowcasting performance.  The
+OECD's real-time data and revisions database, or the Federal Reserve Bank
+of Philadelphia's Real-Time Data Research Center, offer models for how
+such archives could be constructed for BoP statistics.
+
+5.4  Disaggregated BoP components
+
+This thesis primarily targets the current account balance and goods trade
+balance.  Extending the analysis to services trade, primary income
+(investment income flows), and the financial account (FDI, portfolio
+investment, other investment) would provide a more complete picture.
+Different BoP components may respond differentially to various predictor
+types.
+
+5.5  Operational deployment
+
+The ultimate test of this research is deployment in a production
+environment.  A natural next step would be to implement the Ridge-based
+nowcasting model with alternative data feeds at the Banque de France or
+ECB, running it alongside existing estimation procedures and comparing
+performance in real time over several quarters.
+
+
+6.  Concluding Remarks
+================================================================================
+
+The central message of this thesis is both specific and broad.
+
+The specific message is that Balance of Payments nowcasting can be
+meaningfully improved using machine learning methods -- particularly Ridge
+regression -- combined with targeted alternative data sources.  The
+improvements are statistically significant, economically meaningful, and
+practically implementable.
+
+The broader message concerns the appropriate use of complexity in
+macroeconomic forecasting.  In a research landscape increasingly drawn
+to ever-more-sophisticated architectures, our finding that a regularised
+linear model outperforms deep learning for BoP estimation is a reminder
+that model complexity must be calibrated to the data environment.  With
+small samples, low feature dimensions, and approximately linear
+relationships, simplicity is not just competitive -- it is optimal.
+
+The Balance of Payments may be one of the oldest frameworks in economics,
+dating back to the mercantilists.  But the tools we use to estimate it
+need not be old.  This thesis shows that modern machine learning methods,
+thoughtfully applied and rigorously evaluated, can make this venerable
+statistical framework more timely, more accurate, and more useful for the
+policymakers who depend on it.

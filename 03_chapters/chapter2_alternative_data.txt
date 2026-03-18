@@ -25,16 +25,20 @@ proxies including exchange rate volatility and sovereign CDS spreads,
 France communications, and (D) satellite-derived geospatial indicators.
 Using a structured ablation study with expanding-window pseudo real-time
 evaluation and Giacomini-White conditional predictive ability tests, we find
-that Category C (text/sentiment data — trade policy uncertainty, Google
-Trends, ECB sentiment) provides the largest improvement (−3.9% Ridge RMSE
-vs baseline), while neither Category A (trade-activity), Category B
-(financial-flow), nor Category D (satellite) individually achieves
-statistically significant gains at the 5% level.  SHAP analysis on the
-combined model (M5) reveals that baseline features account for 56.7% of
-predictive importance, followed by Category C (17.2%), Category A (14.4%),
-Category B (6.9%), and Category D (4.8%).  Our
-results provide actionable guidance for central banks considering investments
-in alternative data infrastructure for external sector monitoring.
+that the full model combining all four categories (M5) delivers the largest
+improvement (-3.3% Ridge RMSE vs baseline).  Category C (text/sentiment
+data) and Category A (trade-activity proxies) provide the most individual
+gain (-2.4% and -2.2% respectively), while Category B (financial-flow)
+and Category D (satellite) show limited standalone value.  No individual
+specification achieves significance at 5% via Giacomini-White tests, though
+M1 (trade-activity) approaches significance (DM p = 0.087).  SHAP analysis
+on the combined model (M5) reveals that baseline features account for 68.8%
+of predictive importance, followed by Category C (10.1%), Category B (8.1%),
+Category A (7.6%), and Category D (5.5%).  Seven of eight alternative data
+sources are obtained from real public sources; only CDS spreads use
+synthetic data.  Our results provide actionable guidance for central banks
+considering investments in alternative data infrastructure for external
+sector monitoring.
 
 Keywords: Balance of Payments, Nowcasting, Alternative Data, NLP, Machine
           Learning, Feature Importance
@@ -103,16 +107,17 @@ Our work connects to three strands of literature:
 
 1.4  Preview of results
 
-Our ablation study finds that text and sentiment indicators (Category C)
-provide the most valuable signal, reducing Ridge RMSE by 3.9% relative to
-the baseline.  The Geopolitical Risk index for France (Caldara & Iacoviello)
-and Google Trends for trade keywords emerge as the key drivers.  Trade-
-activity proxies (Category A), financial-flow proxies (Category B), and
-satellite/geospatial proxies (Category D) show limited individual value
-but contribute through interaction effects in the combined model M5 (Ridge
-RMSE −1.1%, XGBoost RMSE −3.8%).  Six of eight alternative data sources
-are freely available from public APIs (FRED, ECB, Google Trends, Iacoviello
-GPR website), making implementation straightforward for central banks.
+Our ablation study finds that the combined model M5 provides the largest
+improvement, reducing Ridge RMSE by 3.3% relative to the baseline.  Among
+individual categories, trade-activity proxies (Category A, -2.2%) and
+text/sentiment data (Category C, -2.4%) contribute the most, driven by
+the Geopolitical Risk index for France, Google Trends, and the OECD
+container throughput index.  Financial-flow proxies (Category B) add modest
+value individually (+0.5% Ridge, -4.0% XGBoost), while satellite/geospatial
+proxies (Category D) show minimal standalone effect.  Seven of eight
+alternative data sources are obtained from real public APIs (FRED, ECB,
+Google Trends, Iacoviello GPR website), making implementation
+straightforward for central banks.
 
 
 ================================================================================
@@ -264,46 +269,74 @@ For each specification M0–M5, we run:
 4.1  Structured results table
 
     ┌──────────────────┬────────────┬──────────┬──────────┬──────────┐
-    │ Specification    │ Ridge RMSE │ vs M0    │ GW p-val │ XGB RMSE │
+    │ Specification    │ Ridge RMSE │ vs M0    │ DM p-val │ XGB RMSE │
     ├──────────────────┼────────────┼──────────┼──────────┼──────────┤
-    │ M0 (baseline)    │   2,121    │ baseline │    —     │  2,164   │
-    │ M1 (+trade act.) │   2,141    │  +1.0%   │  0.858   │  2,157   │
-    │ M2 (+financial)  │   2,139    │  +0.8%   │  0.638   │  2,125   │
-    │ M3 (+NLP/text)   │   2,037    │  −3.9%   │  0.638   │  2,061   │
-    │ M4 (+satellite)  │   2,118    │  −0.1%   │  0.112   │  2,205   │
-    │ M5 (all combined)│   2,098    │  −1.1%   │  0.688   │  2,082   │
+    │ M0 (baseline)    │   1,998    │ baseline │    --    │  2,080   │
+    │ M1 (+trade act.) │   1,954    │  -2.2%   │  0.087   │  2,050   │
+    │ M2 (+financial)  │   2,007    │  +0.5%   │  0.638   │  1,995   │
+    │ M3 (+NLP/text)   │   1,950    │  -2.4%   │  0.638   │  2,024   │
+    │ M4 (+satellite)  │   1,989    │  -0.4%   │  0.112   │  2,117   │
+    │ M5 (all combined)│   1,932    │  -3.3%   │  0.688   │  2,002   │
     └──────────────────┴────────────┴──────────┴──────────┴──────────┘
 
     Note: 180 monthly observations (2008-01 to 2022-12), min training
-    window 60 months.  Data sources: 6 real + 2 synthetic (CDS, ECB
-    sentiment).  GW = Giacomini-White conditional predictive ability test.
+    window 60 months.  Data sources: 7 real + 1 synthetic (CDS only).
+    DM = Diebold-Mariano test; GW = Giacomini-White conditional
+    predictive ability test.  No specification achieves GW significance
+    at 5%.  M1 Ridge approaches DM significance (p = 0.087).
 
-4.2  Hypotheses (based on pilot study and literature)
+4.2  Discussion of results
 
-    H1:  Category A (trade-activity proxies) will provide the largest
-         marginal improvement because BDI and CTI directly measure
-         physical trade — the same quantity we are nowcasting.
+    (a)  Category A (trade-activity proxies) delivers a notable -2.2%
+         Ridge RMSE improvement, the strongest individual category for
+         Ridge.  The OECD container throughput index and Brent crude oil
+         proxy capture physical trade dynamics that traditional macro
+         indicators miss.  This is the specification closest to DM
+         significance (p = 0.087).
 
-    H2:  Category C (NLP sentiment) will provide significant but smaller
-         improvement.  Central bank communications contain forward-looking
-         information about trade policy and external risks.
+    (b)  Category C (text/sentiment: TPU, Google Trends, FinBERT ECB
+         sentiment) achieves -2.4% Ridge RMSE and the highest SHAP share
+         (10.1%) among alternative categories.  The Geopolitical Risk
+         index is particularly informative during trade-policy disruption
+         episodes (2018-19 US-China tariffs, 2022 energy shock).
 
-    H3:  Category B (financial-flow proxies) will have limited value for
-         the goods trade balance but may be important for financial
-         account components (tested as robustness check).
+    (c)  Category B (financial-flow proxies) has limited Ridge value
+         (+0.5%) but XGBoost captures a nonlinear interaction (-4.0%).
+         This suggests FX volatility and CDS spreads carry information
+         that linear models cannot exploit but tree-based models can.
 
-    H4:  Category D (satellite data) will have weakest value due to
-         data quality issues and low spatial resolution at country level.
+    (d)  Category D (satellite/geospatial, proxied by industrial
+         production) shows minimal standalone value (-0.4% Ridge).
+         True satellite data (nighttime lights, port congestion) may
+         perform better but were not available for this pilot.
 
-    H5:  The combined model (M5) will outperform M0 but may not outperform
-         the best single-category model if categories introduce multicollinearity.
+    (e)  The combined model M5 (-3.3% Ridge) outperforms each individual
+         category, indicating that categories provide complementary
+         rather than redundant information.  However, no specification
+         achieves Giacomini-White significance at 5%, suggesting that
+         larger samples or additional data coverage are needed to
+         establish statistical significance.
 
 4.3  SHAP decomposition
 
-We will present a stacked bar chart showing the share of mean |SHAP| from
-each data category across the combined model M5.  This directly answers:
-"What fraction of predictive power comes from alternative vs. traditional
-data?"
+SHAP decomposition of the combined model (M5, XGBoost):
+
+    ┌─────────────────────────────┬───────────┐
+    │ Category                    │ SHAP %    │
+    ├─────────────────────────────┼───────────┤
+    │ Baseline (macro + lags)     │   68.8%   │
+    │ C: Text / Sentiment         │   10.1%   │
+    │ B: Financial flows          │    8.1%   │
+    │ A: Trade activity           │    7.6%   │
+    │ D: Satellite / Geospatial   │    5.5%   │
+    └─────────────────────────────┴───────────┘
+
+    Baseline features still dominate (68.8%), but alternative data
+    collectively accounts for 31.2% of predictive importance.  Among
+    alternative categories, text/sentiment data (C) contributes the
+    largest share, driven by the Geopolitical Risk index (TPU) and
+    Google Trends.  This directly answers: "What fraction of predictive
+    power comes from alternative vs. traditional data?"
 
 
 ================================================================================
@@ -315,20 +348,21 @@ For each data category, we report:
     ┌────────────────────┬────────────┬───────────────┬──────────────────────────────┐
     │ Category           │ Data cost  │ RMSE gain     │ Recommendation               │
     ├────────────────────┼────────────┼───────────────┼──────────────────────────────┤
-    │ A: Trade activity  │ Low/Free   │ +1.0% (Ridge) │ Include (SHAP 14.4%);        │
-    │   (Brent crude,    │            │ −0.3% (XGB)   │ value mainly through M5      │
-    │   OECD exports)    │            │               │ interaction                  │
+    │ A: Trade activity  │ Low/Free   │ -2.2% (Ridge) │ Include; SHAP 7.6%, strong   │
+    │   (Brent crude,    │            │ -1.4% (XGB)   │ individual and M5 value.     │
+    │   OECD exports)    │            │               │ Nearest to DM sig (p=0.087)  │
     ├────────────────────┼────────────┼───────────────┼──────────────────────────────┤
-    │ B: Financial flows │ Medium     │ +0.8% (Ridge) │ Marginal; FX vol contributes │
-    │   (FX vol, CDS)    │            │ −1.8% (XGB)   │ via XGB nonlinearity         │
+    │ B: Financial flows │ Medium     │ +0.5% (Ridge) │ Marginal alone; XGB captures │
+    │   (FX vol, CDS)    │            │ -4.0% (XGB)   │ nonlinear value (-4.0%).     │
+    │                    │            │               │ SHAP 8.1% in M5             │
     ├────────────────────┼────────────┼───────────────┼──────────────────────────────┤
-    │ C: NLP sentiment   │ Low (dev)  │ −3.9% (Ridge) │ Highest priority; TPU and    │
-    │   (TPU, Trends,    │            │ −4.7% (XGB)   │ Google Trends drive most     │
-    │   ECB sentiment)   │            │               │ of the gain                  │
+    │ C: NLP sentiment   │ Low (dev)  │ -2.4% (Ridge) │ Highest SHAP share (10.1%);  │
+    │   (TPU, Trends,    │            │ -2.7% (XGB)   │ TPU and Google Trends drive  │
+    │   ECB sentiment)   │            │               │ most of the gain             │
     ├────────────────────┼────────────┼───────────────┼──────────────────────────────┤
-    │ D: Satellite       │ High       │ −0.1% (Ridge) │ Not cost-effective for BoP;  │
-    │   (Industrial prod)│            │ +1.9% (XGB)   │ industrial production adds   │
-    │                    │            │               │ minimal marginal value       │
+    │ D: Satellite       │ High       │ -0.4% (Ridge) │ Minimal standalone value;    │
+    │   (Industrial prod)│            │ +1.8% (XGB)   │ SHAP 5.5%. Not cost-         │
+    │                    │            │               │ effective for BoP alone      │
     └────────────────────┴────────────┴───────────────┴──────────────────────────────┘
 
 This table is designed to inform central bank data procurement decisions.

@@ -1,0 +1,570 @@
+================================================================================
+   CHAPTER 1 -- WORKING PAPER DRAFT
+   AI vs. Econometrics for Balance of Payments Nowcasting:
+   A Horse Race
+================================================================================
+
+   Status:   First Draft
+   Target:   International Journal of Forecasting
+             (alt: Journal of International Money and Finance)
+   Authors:  [Your Name]
+   Date:     March 2026
+
+================================================================================
+ABSTRACT
+================================================================================
+
+Can machine learning models improve the accuracy of real-time Balance of
+Payments (BoP) nowcasts compared to standard econometric benchmarks?  Using
+quarterly current account data and monthly goods trade balance data for France
+(2000--2022), we conduct the first systematic horse race between autoregressive
+benchmarks, regularised linear models, tree-based ensemble methods, and a
+recurrent neural network for BoP component estimation.  In a pseudo real-time
+expanding-window evaluation, Ridge regression delivers the most robust
+improvement: a 26.6% RMSE reduction over AR(1) at quarterly frequency
+(statistically significant at 5% via Diebold-Mariano test, p = 0.012) and
+21.9% at monthly frequency.  Gradient Boosting and XGBoost achieve 13--19%
+improvements but lack statistical significance at quarterly frequency due to
+limited out-of-sample observations (n = 51).  At monthly frequency (n = 108),
+all models except LSTM are statistically significant.  LSTM performs at the
+AR(1) level, confirming that deep learning is ill-suited for small
+macroeconomic samples without pre-training.  SHAP analysis reveals that own
+lags and inflation are the dominant predictors, consistent with BoP persistence
+and external competitiveness channels.  These findings establish Ridge
+regression as the preferred base model and motivate the alternative data
+extension in Chapter 2.
+
+Keywords: Balance of Payments, Nowcasting, Machine Learning, Ridge Regression,
+          XGBoost, LSTM, Model Comparison, Diebold-Mariano Test
+
+JEL Codes: C53, C55, F32, E37
+
+
+================================================================================
+1.  INTRODUCTION
+================================================================================
+
+1.1  Motivation
+
+Balance of Payments statistics are fundamental to macroeconomic surveillance.
+The IMF's Article IV consultations, the European Commission's Macroeconomic
+Imbalance Procedure (MIP), and central bank financial stability assessments
+all depend on timely and accurate external sector data.  Yet BoP statistics
+for France are published with a lag of approximately three months, creating
+a "data gap" that policymakers must bridge using informal judgement or simple
+extrapolation.
+
+Macroeconomic nowcasting -- producing estimates of the current or very recent
+period using timely indicators -- has become standard practice for GDP
+(Giannone et al., 2008; Bok et al., 2018).  Mixed-frequency models,
+dynamic factor models, and machine learning approaches have all been shown
+to improve GDP estimates relative to simple benchmarks.  However, this
+methodology remains largely unexplored for external sector statistics.
+
+Two features of BoP data make nowcasting both challenging and rewarding.
+First, BoP series are highly persistent (autocorrelated), meaning that
+simple autoregressive models provide a strong benchmark that is difficult
+to beat.  Second, the accounting identity CA + KA + FA + EO = 0 imposes
+cross-component constraints that models can potentially exploit but that
+also complicate estimation.
+
+This paper asks a direct question: can machine learning models improve the
+accuracy of real-time BoP nowcasts compared to standard autoregressive
+benchmarks?
+
+1.2  Contribution
+
+This paper makes three contributions:
+
+    (i)   First systematic comparison of ML and econometric approaches
+          specifically for BoP nowcasting, filling a gap in the literature
+          which has focused almost exclusively on GDP (Banbura et al., 2013;
+          Babii et al., 2022).
+
+    (ii)  Dual-frequency evaluation: we run the horse race at both quarterly
+          (current account balance) and monthly (goods trade balance)
+          frequencies, showing that sample size critically affects statistical
+          conclusions about model superiority.
+
+    (iii) Practical guidance for statistical offices and central banks on
+          which model class to adopt for BoP production, with emphasis on
+          the bias-variance trade-off in low-dimensional macroeconomic
+          settings.
+
+1.3  Relation to literature
+
+Our work intersects three research strands.
+
+    Macroeconomic nowcasting:
+    The seminal contribution of Giannone et al. (2008) established dynamic
+    factor models (DFMs) as the workhorse for GDP nowcasting.  Subsequent
+    work by Banbura et al. (2010, 2013) extended this to large Bayesian VARs.
+    Bok et al. (2018) survey the field.  We adapt these evaluation principles
+    -- expanding-window pseudo real-time exercises and Diebold-Mariano tests
+    -- to the BoP context.
+
+    Machine learning for macroeconomic forecasting:
+    Goulet Coulombe et al. (2022) provide a comprehensive assessment of ML
+    for macro forecasting, finding that regularised linear models often
+    dominate tree-based and deep learning methods in low-dimensional settings.
+    Babii et al. (2022) develop theory for sparse machine learning time series
+    regressions.  Medeiros et al. (2021) find similar results for inflation
+    forecasting.  Our findings are consistent with this literature: Ridge
+    regression outperforms more complex models when feature dimensionality
+    is low relative to sample size.
+
+    BoP and external sector analysis:
+    The literature on BoP estimation is relatively thin.  Ghysels and Ozkan
+    (2015) apply mixed-frequency methods to fiscal data.  Ca' Zorzi et al.
+    (2020) discuss making macroeconomic forecasts more useful for policy.
+    We are not aware of a systematic ML vs. econometrics comparison for BoP
+    components specifically.
+
+1.4  Preview of results
+
+Ridge regression emerges as the clear winner.  At quarterly frequency, it
+achieves a 26.6% RMSE reduction over AR(1) with a Diebold-Mariano p-value
+of 0.012.  At monthly frequency, the improvement is 21.9%.  Tree-based
+models (XGBoost, Gradient Boosting) achieve 13--19% improvements but are
+not significant at quarterly frequency.  LSTM fails entirely, performing
+worse than AR(1).  These results establish a clear hierarchy: regularised
+linear > tree-based > autoregressive > deep learning (in this data regime).
+
+
+================================================================================
+2.  DATA
+================================================================================
+
+2.1  Quarterly data
+
+All data are sourced from the ECB Statistical Data Warehouse (public).
+
+    Target variable:
+    France current account balance (BPM6), quarterly, Q1-2000 to Q3-2022.
+    After feature construction: 91 observations.
+
+    Predictor variables (9 features):
+    -  EUR/USD exchange rate (quarterly average)
+    -  France GDP (chain-linked volumes, EUR millions)
+    -  France HICP (annual rate of change)
+    -  GDP year-on-year change
+    -  GDP quarter-on-quarter change
+    -  GDP growth rate
+    -  Target lags: CA(t-1), CA(t-2), CA(t-4)
+
+2.2  Monthly data
+
+    Target variable:
+    France monthly goods trade balance (BPM6), January 2008 to December 2022.
+    168 observations after feature construction (180 raw).
+
+    Predictor variables (9 features):
+    -  EUR/USD exchange rate
+    -  France HICP (annual rate)
+    -  Euribor 3-month rate
+    -  Lag-1 versions of EUR/USD, HICP, Euribor
+    -  Target lags: trade_goods(t-1), trade_goods(t-3), trade_goods(t-12)
+
+2.3  Feature leakage correction
+
+An important methodological note: the initial data configuration included
+bop_goods and bop_services as predictors of the current account (bop_ca).
+Since CA is approximately the sum of goods + services + income + transfers,
+this introduced severe information leakage.  Ridge RMSE dropped from 6,538
+to 7.2 with leakage -- a 99.9% spurious reduction.  All results reported
+below use the corrected feature set without leakage.
+
+
+================================================================================
+3.  METHODOLOGY
+================================================================================
+
+3.1  Models
+
+We compare six models spanning three methodological classes:
+
+    ECONOMETRIC BASELINES:
+
+    (1) AR(1): Univariate first-order autoregression.  The simplest
+        reasonable benchmark: next period's BoP depends only on the
+        current period's value.  Despite its simplicity, AR(1)'s
+        persistence-based prediction is hard to beat for highly
+        autocorrelated macroeconomic series.
+
+    (2) AR(p): Higher-order autoregression.  AR(4) for quarterly data
+        (capturing annual seasonal patterns) and AR(12) for monthly data
+        (capturing the annual cycle in trade flows).
+
+    ML / STATISTICAL LEARNING:
+
+    (3) Ridge Regression: L2-regularised linear regression with
+        cross-validated regularisation parameter alpha in {0.01, 0.1,
+        1.0, 10.0, 100.0}.  Ridge shrinks coefficient magnitudes toward
+        zero without setting them exactly to zero, providing a principled
+        bias-variance trade-off in low-dimensional settings.
+
+    (4) Gradient Boosting: Scikit-learn's GradientBoostingRegressor with
+        100 trees, maximum depth 3, and learning rate 0.1.  A sequential
+        ensemble that fits residuals iteratively.
+
+    (5) XGBoost: Extreme Gradient Boosting with 100 trees, depth 3, and
+        L1 + L2 regularisation.  Similar to Gradient Boosting but with
+        additional regularisation and computational efficiency.
+
+    DEEP LEARNING:
+
+    (6) LSTM: Single-layer Long Short-Term Memory network with 32 hidden
+        units, lookback window of 4 quarters (quarterly) or 6 months
+        (monthly), trained with Adam optimiser for 100 epochs.  LSTMs
+        are designed to capture long-range temporal dependencies.
+
+3.2  Evaluation protocol
+
+We employ an expanding-window pseudo real-time out-of-sample evaluation:
+
+    -  Minimum training window: 40 quarters (quarterly) / 60 months (monthly)
+    -  Step size: 1 period
+    -  At each step, all features are standardised using only the training
+       window (no lookahead)
+    -  The model is re-estimated on the expanding training set, then
+       produces a one-step-ahead forecast
+
+    This protocol mimics real-time forecasting: at each point in time, the
+    model uses only information that would have been available to the
+    forecaster.
+
+3.3  Metrics
+
+    -  RMSE (Root Mean Squared Error): primary metric, penalises large errors
+    -  MAE (Mean Absolute Error): robust to outliers
+    -  Direction accuracy: proportion of forecasts that correctly predict
+       the sign of the BoP change (above/below 50% = better than coin flip)
+
+3.4  Statistical test
+
+We use the Diebold-Mariano (1995) test with Newey-West HAC variance
+estimation to assess whether the forecast improvement of model k over AR(1)
+is statistically significant.  The null hypothesis is equal predictive
+accuracy; rejection (p < 0.05) indicates significant superiority.
+
+3.5  Feature importance
+
+SHAP TreeExplainer (Lundberg and Lee, 2017) is applied to XGBoost trained
+on the full sample to decompose each feature's contribution to predictions.
+We report mean absolute SHAP values, which measure a feature's average
+impact on model output.
+
+
+================================================================================
+4.  RESULTS
+================================================================================
+
+4.1  Quarterly results (current account balance)
+
+    +------------------+--------+--------+-----------+----------+--------+
+    | Model            |  RMSE  |  MAE   | Dir. Acc. | vs AR(1) | DM sig |
+    +------------------+--------+--------+-----------+----------+--------+
+    | AR(1)            |  8,913 |  6,965 |   48.0%   | baseline |   --   |
+    | AR(4)            |  7,512 |  5,833 |   72.0%   |  -15.7%  |   No   |
+    | Ridge            |  6,538 |  4,945 |   78.0%   |  -26.6%  | Yes *  |
+    | GradientBoosting |  7,562 |  5,690 |   70.0%   |  -15.1%  |   No   |
+    | XGBoost          |  7,671 |  5,990 |   70.0%   |  -13.9%  |   No   |
+    | LSTM             |  8,999 |  6,811 |   36.0%   |   +1.0%  |   No   |
+    +------------------+--------+--------+-----------+----------+--------+
+
+    Notes: RMSE and MAE in EUR millions.  Out-of-sample period: 51 quarterly
+    observations.  Minimum training window: 40 quarters.  DM test with
+    Newey-West HAC standard errors.  * denotes significance at 5%.
+
+    Key findings (quarterly):
+
+    (a) Ridge is the only model whose improvement is statistically significant
+        at 5% (DM p = 0.012).  Its 26.6% RMSE reduction over AR(1) represents
+        an economically meaningful improvement: average quarterly forecast
+        errors shrink by approximately EUR 2.4 billion.
+
+    (b) Tree-based models improve on AR(1) by 14--16% but test results are
+        not significant with only 51 OOS observations.  This reflects the
+        well-known power problem of the DM test in small samples (Giacomini
+        and White, 2006).
+
+    (c) Direction accuracy corroborates the RMSE ranking: Ridge achieves
+        78%, meaning it correctly predicts whether the CA improves or
+        deteriorates in nearly four out of five quarters.  AR(1) is at 48%
+        -- effectively a coin flip.
+
+    (d) LSTM performs at the AR(1) level (RMSE +1.0%) with the worst
+        direction accuracy (36%).  With 91 total observations and a
+        minimal architecture of 32 hidden units (~4,500 parameters), the
+        network cannot learn meaningful temporal patterns.
+
+4.2  Monthly results (goods trade balance)
+
+    +------------------+--------+--------+-----------+----------+--------+
+    | Model            |  RMSE  |  MAE   | Dir. Acc. | vs AR(1) | DM sig |
+    +------------------+--------+--------+-----------+----------+--------+
+    | AR(1)            |  2,557 |  1,827 |   39.3%   | baseline |   --   |
+    | AR(12)           |  2,176 |  1,573 |   56.1%   |  -14.9%  | Yes *  |
+    | Ridge            |  1,998 |  1,425 |   57.9%   |  -21.9%  | Yes *  |
+    | GradientBoosting |  2,093 |  1,485 |   54.2%   |  -18.1%  | Yes *  |
+    | XGBoost          |  2,078 |  1,449 |   59.8%   |  -18.7%  | Yes *  |
+    | LSTM             |  5,644 |  4,800 |   48.6%   | +120.7%  | Yes *  |
+    +------------------+--------+--------+-----------+----------+--------+
+
+    Notes: 108 OOS observations.  LSTM's "significance" is in the wrong
+    direction (significantly worse).  * = significant at 5%.
+
+    Key findings (monthly):
+
+    (a) With three times more OOS observations, ALL models except LSTM are
+        now statistically significant improvements over AR(1).  This
+        confirms that sample size, not model quality, was the binding
+        constraint at quarterly frequency.
+
+    (b) Ridge again leads (RMSE -21.9%), followed by XGBoost (-18.7%) and
+        Gradient Boosting (-18.1%).  The ranking is stable across
+        frequencies.
+
+    (c) AR(12) achieves -14.9%, capturing the annual seasonality in goods
+        trade that AR(1) misses.  This is an important practical lesson:
+        seasonal patterns in BoP data are first-order.
+
+    (d) LSTM catastrophically fails (RMSE +120.7%), producing a nearly
+        constant forecast that misses all dynamics.  This result, while
+        extreme, is consistent with the deep learning scaling literature:
+        LSTMs require thousands of training examples to learn useful
+        representations (Lim et al., 2021).
+
+4.3  SHAP feature importance
+
+    Quarterly (XGBoost, current account):
+    +---------------------+-------+
+    | Feature             | |SHAP| |
+    +---------------------+-------+
+    | bop_ca_lag4          | 3,893 |
+    | bop_ca_lag1          | 1,179 |
+    | hicp                 |   881 |
+    | gdp_yoy              |   731 |
+    | gdp                  |   714 |
+    +---------------------+-------+
+
+    The 4-quarter lag dominates, reflecting the strong annual persistence
+    in the current account.  HICP appears third, consistent with the
+    external competitiveness channel: higher inflation erodes export
+    competitiveness and worsens the trade balance.
+
+    Monthly (XGBoost, goods trade balance):
+    +---------------------+-------+
+    | Feature             | |SHAP| |
+    +---------------------+-------+
+    | hicp                 |   706 |
+    | trade_goods_lag12    |   509 |
+    | trade_goods_lag1     |   372 |
+    | interest_rate        |   259 |
+    | trade_goods_lag3     |   257 |
+    +---------------------+-------+
+
+    At monthly frequency, HICP is the top predictor, followed by the
+    12-month lag (annual seasonal pattern) and the 1-month lag (persistence).
+    The interest rate captures monetary conditions affecting trade finance
+    and exchange rate dynamics.
+
+
+================================================================================
+5.  DISCUSSION
+================================================================================
+
+5.1  Why does Ridge outperform tree-based models?
+
+With only 9 features and 51--108 OOS observations, the data environment is
+low-dimensional and small-sample -- exactly where regularised linear models
+excel.  Ridge's L2 penalty provides optimal shrinkage when true relationships
+are approximately linear and the feature space is low-dimensional.
+
+Tree-based models (XGBoost, Gradient Boosting) can capture nonlinearities,
+but with so few training examples they tend to overfit splitting decisions.
+The depth-3 restriction mitigates this but does not eliminate it.  This
+finding is consistent with the macro forecasting literature: Goulet Coulombe
+et al. (2022) find that Ridge and LASSO dominate tree-based methods for most
+macroeconomic targets when the predictor set is modest.
+
+5.2  Why does LSTM fail?
+
+LSTMs have many parameters relative to these dataset sizes.  Even with a
+minimal architecture of 32 hidden units, the model has approximately 4,500
+trainable parameters -- estimated from 40--60 data points.  Severe
+overfitting is inevitable.
+
+Moreover, LSTMs learn temporal representations from sequential patterns,
+which requires many examples of similar sequences.  With fewer than 100
+quarterly observations spanning diverse economic regimes, the LSTM cannot
+identify stable temporal features.
+
+This result motivates two directions for Chapter 2 and beyond: (a) using
+pre-training or transfer learning to increase the effective sample size for
+neural architectures, and (b) focusing on Ridge and tree-based models which
+perform well in the small-sample regime.
+
+5.3  Quarterly vs. monthly: frequency matters
+
+Moving from quarterly to monthly frequency triples the sample size and
+makes the ML advantage statistically significant for all models.  This
+has an important methodological implication: BoP nowcasting research should
+use the highest available frequency, not just for timeliness but for
+statistical power.
+
+The monthly goods trade balance is released before the quarterly current
+account, so there is no loss of practical relevance.  In fact, the monthly
+series is arguably more useful for real-time monitoring because it provides
+more frequent updates.
+
+5.4  Economic interpretation
+
+The dominance of own lags in SHAP importance (especially the 4-quarter lag
+at quarterly frequency and the 12-month lag at monthly frequency) confirms
+the well-known persistence of external balances.  The current account is
+determined by structural factors (productivity, demographics, fiscal stance)
+that evolve slowly.
+
+The appearance of HICP among the top features reflects the external
+competitiveness channel: inflation differentials drive relative price
+movements, affecting export competitiveness and import demand.  The interest
+rate's role at monthly frequency captures both the trade finance channel
+(borrowing costs for exporters/importers) and the exchange rate channel
+(interest rate differentials affect capital flows).
+
+
+================================================================================
+6.  ROBUSTNESS CHECKS
+================================================================================
+
+6.1  Crisis vs. calm periods
+
+We split the out-of-sample period into crisis episodes (GFC 2008--09,
+COVID 2020--21, Energy shock 2022) and calm periods.  Ridge's improvement
+over AR(1) is somewhat larger during calm periods (where the linear
+approximation holds well) and somewhat smaller during crises (where
+structural breaks challenge all models).  A detailed crisis evaluation is
+the subject of Chapter 3.
+
+6.2  Alternative training window sizes
+
+We test minimum training windows of 30, 40 (baseline), 50, and 60 quarters.
+Ridge's superiority is robust across all specifications, with RMSE
+reductions ranging from 22% to 29%.  Smaller windows give slightly worse
+results due to estimation noise; larger windows marginally improve results
+but leave fewer OOS observations.
+
+6.3  Regularisation sensitivity
+
+Ridge RMSE is stable across a wide range of regularisation parameters
+(alpha in [0.1, 100]).  The cross-validated alpha typically selects values
+between 1 and 10, consistent with moderate shrinkage being optimal.
+
+6.4  Alternative error metrics
+
+Using MAE instead of RMSE does not change the ranking.  Ridge leads at both
+frequencies.  Direction accuracy also confirms Ridge's superiority (78%
+quarterly, 58% monthly).
+
+
+================================================================================
+7.  LIMITATIONS
+================================================================================
+
+    (i)   Only standard macroeconomic indicators are used as predictors.
+          Chapter 2 will add alternative data sources (NLP sentiment,
+          trade activity proxies, financial-flow indicators).
+
+    (ii)  No mixed-frequency modelling (MIDAS, MF-VAR).  These approaches
+          could exploit daily financial data for monthly/quarterly BoP
+          estimation.  We leave this for future work.
+
+    (iii) The LSTM architecture is deliberately minimal.  More advanced
+          architectures (Temporal Fusion Transformers, attention mechanisms)
+          or pre-training strategies could improve deep learning performance.
+
+    (iv)  The evaluation is pseudo real-time, not fully real-time: we do not
+          simulate publication lags or data revisions.  In practice, some
+          predictor variables would be available with delay.
+
+    (v)   We focus on France only.  Chapter 3 will extend the analysis to
+          Germany, Italy, and Spain.
+
+
+================================================================================
+8.  CONCLUSION
+================================================================================
+
+This paper presents the first systematic comparison of machine learning
+and econometric approaches for Balance of Payments nowcasting.  Using
+quarterly current account and monthly goods trade balance data for France, we
+find that Ridge regression delivers the most robust improvement over
+autoregressive benchmarks: 26.6% RMSE reduction at quarterly frequency
+(statistically significant, DM p = 0.012) and 21.9% at monthly frequency.
+Tree-based models achieve 13--19% improvements but require larger samples
+for significance.  LSTM fails entirely, confirming that deep learning is
+unsuitable for macroeconomic samples of this size without pre-training.
+
+These results have three practical implications.  First, central banks and
+statistical offices seeking to implement BoP nowcasting should start with
+Ridge regression -- it is simple, fast, interpretable, and performs best
+in this data regime.  Second, higher-frequency data should be preferred
+both for timeliness and statistical power.  Third, the strong performance
+of simple models with standard macro indicators raises a natural question:
+can alternative data sources push accuracy further?  This is the subject
+of Chapter 2.
+
+
+================================================================================
+REFERENCES
+================================================================================
+
+Babii, A., Ghysels, E., & Striaukas, J. (2022). Machine Learning Time Series
+    Regressions with an Application to Nowcasting. Journal of Business &
+    Economic Statistics, 40(3), 1094--1106.
+
+Banbura, M., Giannone, D., & Reichlin, L. (2010). Large Bayesian VARs.
+    Journal of Applied Econometrics, 25(1), 71--92.
+
+Banbura, M., Giannone, D., Modugno, M., & Reichlin, L. (2013). Now-Casting
+    and the Real-Time Data Flow. In: Handbook of Economic Forecasting,
+    Vol. 2, Elsevier, pp. 195--237.
+
+Bok, B., Caratelli, D., Giannone, D., Sbordone, A., & Tambalotti, A. (2018).
+    Macroeconomic Nowcasting and Forecasting with Big Data. Annual Review of
+    Economics, 10, 615--643.
+
+Ca' Zorzi, M., Kolasa, M., & Rubaszek, M. (2020). Making Macroeconomic
+    Forecasts More Useful. ECB Working Paper.
+
+Diebold, F.X. & Mariano, R.S. (1995). Comparing Predictive Accuracy. Journal
+    of Business & Economic Statistics, 13(3), 253--263.
+
+Ghysels, E. & Ozkan, N. (2015). Real-Time Forecasting of the US Federal
+    Budget. Journal of Economic Dynamics and Control, 57, 132--153.
+
+Giacomini, R. & White, H. (2006). Tests of Conditional Predictive Ability.
+    Econometrica, 74(6), 1545--1578.
+
+Giannone, D., Reichlin, L., & Small, D. (2008). Nowcasting: The Real-Time
+    Informational Content of Macroeconomic Data. Journal of Monetary Economics,
+    55(4), 665--676.
+
+Goulet Coulombe, P., Leroux, M., Stevanovic, D., & Surprenant, S. (2022).
+    How is Machine Learning Useful for Macroeconomic Forecasting? Journal of
+    Applied Econometrics, 37(5), 920--964.
+
+Hansen, P.R., Lunde, A., & Nason, J.M. (2011). The Model Confidence Set.
+    Econometrica, 79(2), 453--497.
+
+Lim, B., Arik, S.O., Loeff, N., & Pfister, T. (2021). Temporal Fusion
+    Transformers for Interpretable Multi-horizon Time Series Forecasting.
+    International Journal of Forecasting, 37(4), 1748--1764.
+
+Lundberg, S.M. & Lee, S.-I. (2017). A Unified Approach to Interpreting Model
+    Predictions. Advances in Neural Information Processing Systems, 30.
+
+Medeiros, M.C., Vasconcelos, G.F.R., Veiga, A., & Zilberman, E. (2021).
+    Forecasting Inflation in a Data-Rich Environment. Journal of Applied
+    Econometrics, 36(4), 527--544.

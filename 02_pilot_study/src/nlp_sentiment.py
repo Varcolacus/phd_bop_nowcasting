@@ -298,35 +298,43 @@ def run_nlp_pipeline(start_year=2008, end_year=2022):
         print("    [INFO] No statement dates found — generating synthetic sentiment")
         return generate_synthetic_sentiment(start_year, end_year), "synthetic"
 
-    # Step 2: Try to fetch ECB press conference texts via the search API
+    # Step 2: Try to fetch ECB press conference texts via multiple URL patterns
     print("    Fetching ECB monetary policy statement texts...")
     fetched_texts = []
 
     from bs4 import BeautifulSoup
     for date, date_str in statement_dates:
-        # Try the ECB search / press release page for this date
-        # ECB press conferences are at:
-        # https://www.ecb.europa.eu/press/pressconf/YYYY/html/ecb.isYYMMDD~HASH.en.html
-        # Since hash is unknown, try the monetary policy decisions press release
         yy = f"{date.year % 100:02d}"
         mm = f"{date.month:02d}"
         dd = f"{date.day:02d}"
-        try:
-            # Try monetary policy decision press release
-            pr_url = f"https://www.ecb.europa.eu/press/pr/date/{date.year}/html/pr{yy}{mm}{dd}.en.html"
-            resp = requests.get(pr_url, timeout=15, verify=False,
-                                headers={"User-Agent": "Mozilla/5.0"})
-            if resp.status_code == 200 and len(resp.text) > 500:
-                soup = BeautifulSoup(resp.text, "lxml")
-                content = soup.find("article") or soup.find("div", class_="section")
-                if content:
-                    paras = content.find_all("p")
-                    text = "\n".join(p.get_text(strip=True) for p in paras)
-                    if len(text) > 100:
-                        fetched_texts.append((date, text))
-                        continue
-        except Exception:
-            pass
+        yyyy = str(date.year)
+        yyyymmdd = f"{yyyy}{mm}{dd}"
+
+        # Try multiple URL patterns in order of preference
+        urls_to_try = [
+            # Introductory statement (pre-2015 format, more text)
+            f"https://www.ecb.europa.eu/press/pressconf/{yyyy}/html/is{yy}{mm}{dd}.en.html",
+            # Monetary policy decisions press release (pre-2015 format)
+            f"https://www.ecb.europa.eu/press/pr/date/{yyyy}/html/pr{yy}{mm}{dd}.en.html",
+            # Introductory statement alt date format
+            f"https://www.ecb.europa.eu/press/pressconf/{yyyy}/html/is{yyyymmdd}.en.html",
+        ]
+
+        for url in urls_to_try:
+            try:
+                resp = requests.get(url, timeout=15, verify=False,
+                                    headers={"User-Agent": "Mozilla/5.0"})
+                if resp.status_code == 200 and len(resp.text) > 500:
+                    soup = BeautifulSoup(resp.text, "lxml")
+                    content = soup.find("article") or soup.find("div", class_="section") or soup.find("div", id="main-wrapper")
+                    if content:
+                        paras = content.find_all("p")
+                        text = "\n".join(p.get_text(strip=True) for p in paras)
+                        if len(text) > 100:
+                            fetched_texts.append((date, text))
+                            break
+            except Exception:
+                continue
 
     print(f"    Fetched {len(fetched_texts)} / {len(statement_dates)} press releases")
 

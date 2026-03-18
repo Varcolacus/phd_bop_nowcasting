@@ -186,10 +186,10 @@ def generate_synthetic_fx_vol(date_range):
 
 def download_france_cds():
     """
-    France CDS spread — requires Bloomberg/Refinitiv terminal.
+    France CDS spread - requires Bloomberg/Refinitiv terminal.
     Returns None; synthetic fallback used.
     """
-    print("  [CDS] France CDS spread (synthetic — requires terminal access)")
+    print("  [CDS] France CDS spread (synthetic - requires terminal access)")
     return None
 
 
@@ -389,7 +389,7 @@ def download_all_alternative_data(start="2008-01-01", end="2022-12-31"):
     print("=" * 60)
 
     # --- Category A: Trade-activity ---
-    print("\n  CATEGORY A — Trade-activity proxies")
+    print("\n  CATEGORY A - Trade-activity proxies")
     print("  " + "-" * 40)
 
     bdi = download_bdi_from_fred()
@@ -409,7 +409,7 @@ def download_all_alternative_data(start="2008-01-01", end="2022-12-31"):
         meta["cti"] = "synthetic"
 
     # --- Category B: Financial-flow ---
-    print("\n  CATEGORY B — Financial-flow proxies")
+    print("\n  CATEGORY B - Financial-flow proxies")
     print("  " + "-" * 40)
 
     fx_vol = compute_fx_volatility()
@@ -425,7 +425,7 @@ def download_all_alternative_data(start="2008-01-01", end="2022-12-31"):
     meta["cds_spread"] = "synthetic" if cds_raw is None else "real"
 
     # --- Category C: Text/Sentiment ---
-    print("\n  CATEGORY C — Text / Sentiment")
+    print("\n  CATEGORY C - Text / Sentiment")
     print("  " + "-" * 40)
 
     tpu_raw = download_trade_policy_uncertainty()
@@ -445,7 +445,7 @@ def download_all_alternative_data(start="2008-01-01", end="2022-12-31"):
         meta["gtrends"] = "synthetic"
 
     # --- Category D: Satellite ---
-    print("\n  CATEGORY D — Satellite / Geospatial")
+    print("\n  CATEGORY D - Satellite / Geospatial")
     print("  " + "-" * 40)
 
     ntl_raw = download_nighttime_lights()
@@ -461,7 +461,7 @@ def download_all_alternative_data(start="2008-01-01", end="2022-12-31"):
     print("  DATA SOURCE SUMMARY")
     print("  " + "=" * 50)
     for name, status in meta.items():
-        flag = "✓ REAL" if status == "real" else "~ SYNTH"
+        flag = "REAL" if status == "real" else "SYNTH"
         print(f"    {name:<20} [{flag}]  {len(data[name])} obs")
 
     return data, meta

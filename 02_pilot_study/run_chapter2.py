@@ -444,6 +444,14 @@ def main():
 
     df = merge_alternative_with_baseline(df, alt_data)
     df = prepare_baseline_features(df, target=target_col)
+    # Forward-fill sparse alternative data (e.g., ecb_sentiment with limited obs)
+    # then fill remaining NaN with 0 (neutral) for sentiment and alt-data columns
+    alt_cols = [c for c in df.columns if c not in
+                ["date", target_col] + [f"{target_col}_lag1", f"{target_col}_lag3",
+                 f"{target_col}_lag12", "eurusd", "hicp", "interest_rate",
+                 "eurusd_lag1", "hicp_lag1", "interest_rate_lag1"]]
+    for c in alt_cols:
+        df[c] = df[c].ffill().fillna(0)
     df = df.dropna(subset=[target_col]).reset_index(drop=True)
 
     print(f"\n  Combined dataset: {df.shape[0]} months x {df.shape[1]} columns")

@@ -1,0 +1,364 @@
+================================================================================
+   GENERAL INTRODUCTION
+================================================================================
+
+   Artificial Intelligence for Balance of Payments Estimation:
+   Nowcasting, Alternative Data, and Policy Implications
+
+================================================================================
+
+
+1.  Context and Motivation
+================================================================================
+
+The Balance of Payments (BoP) is one of the most important macroeconomic
+statistical frameworks.  It records all economic transactions between
+residents of a country and the rest of the world, covering trade in goods
+and services, primary and secondary income flows, and financial account
+transactions.  BoP statistics directly inform major policy decisions:
+the European Commission's Macroeconomic Imbalance Procedure (MIP) uses
+current account balances to trigger corrective action; central banks
+monitor external positions for financial stability risks; and trade
+negotiators rely on BoP data to assess the impact of commercial policy.
+
+Yet BoP statistics suffer from a fundamental tension between their policy
+importance and their timeliness.  For France -- the focus of this thesis --
+the quarterly current account balance is published by the Banque de France
+approximately three months after the end of the reference quarter.  Monthly
+goods trade data are available with a shorter delay (approximately six
+weeks), but they capture only one component of the current account.
+During this publication gap, policymakers must rely on informal estimates,
+partial indicators, or simple extrapolation.
+
+This tension has grown more acute in recent years for three reasons.
+
+First, the frequency and severity of external shocks has increased.
+The 2008--09 Global Financial Crisis produced sudden stops in capital flows
+and rapid current account reversals.  The 2020 COVID-19 pandemic caused
+an unprecedented collapse in trade volumes within weeks.  The 2022 energy
+price shock triggered a dramatic deterioration of the Euro-area terms of
+trade.  In each episode, timely BoP information would have been valuable
+for calibrating policy responses -- but was unavailable when most needed.
+
+Second, the proliferation of high-frequency and alternative data sources
+creates new opportunities for real-time economic monitoring.  Satellite
+imagery of port congestion, daily vessel tracking data, real-time payment
+flows, Google search patterns, and natural language processing of central
+bank communications can all potentially provide early signals about
+external sector developments.  Whether these data sources actually improve
+BoP estimation is an empirical question that remains unanswered.
+
+Third, advances in machine learning and artificial intelligence have
+transformed forecasting in many domains -- from weather prediction to
+retail demand -- but their application to macroeconomic statistics remains
+in its infancy, particularly for external sector data.  While a rich
+literature has emerged on ML for GDP nowcasting (Giannone et al., 2008;
+Banbura et al., 2013; Goulet Coulombe et al., 2022), there is no
+comparable body of work for BoP estimation.
+
+This thesis addresses all three challenges.  It develops and evaluates
+AI-driven methods to improve the timeliness and accuracy of France's
+Balance of Payments estimates, using both traditional macroeconomic
+indicators and alternative data sources, and assesses whether the resulting
+improvements matter for policy.
+
+
+2.  Literature Positioning
+================================================================================
+
+This thesis sits at the intersection of three research strands.
+
+2.1  Macroeconomic nowcasting
+
+The modern nowcasting literature begins with Giannone, Reichlin and Small
+(2008), who introduced dynamic factor models for GDP estimation using
+mixed-frequency data.  Banbura et al. (2010, 2013) extended this
+framework to large Bayesian VARs.  The key insight is that timely
+high-frequency indicators (industrial production, surveys, financial
+variables) contain information about low-frequency aggregates that can be
+extracted in real time.
+
+Bok et al. (2018) survey the state of the art, documenting how central
+banks worldwide have operationalised nowcasting.  The Federal Reserve Bank
+of New York's "Nowcast", the ECB's "Euro Area Real-Time GDP" model, and
+the Bank of England's suite of nowcasting tools all use variants of this
+framework.
+
+However, this literature has focused almost exclusively on GDP and its
+components (consumption, investment).  External sector statistics --
+current account, trade balance, financial flows -- have received
+comparatively little attention, despite their importance for policy
+surveillance.  This thesis fills this gap.
+
+2.2  Machine learning for economic forecasting
+
+A second literature brings machine learning methods to macroeconomic
+forecasting.  Goulet Coulombe et al. (2022) provide a definitive
+assessment, finding that regularised linear models (Ridge, LASSO) often
+dominate more complex methods in low-dimensional macroeconomic settings.
+Babii et al. (2022) develop theoretical foundations for sparse ML time
+series regressions.  Medeiros et al. (2021) apply similar methods to
+inflation forecasting.
+
+Key findings from this literature that inform our approach: (i)
+regularisation is essential when sample sizes are small relative to
+feature dimensions; (ii) tree-based ensembles (XGBoost, Random Forest)
+can capture nonlinearities but tend to overfit with fewer than several
+hundred observations; (iii) deep learning methods (LSTM, Transformer)
+generally require much larger samples than macroeconomic settings provide,
+unless pre-training or transfer learning is employed.
+
+2.3  Alternative data for economics
+
+A rapidly growing literature explores non-traditional data sources for
+economic monitoring.  Woloszko (2020) uses Google Trends for real-time
+activity tracking at the OECD.  Aprigliano et al. (2019) use payment
+system data to forecast Italian GDP.  Caldara and Iacoviello (2022)
+construct geopolitical risk indices from news text.  In the financial
+domain, FinBERT (Araci, 2019) and similar NLP models extract sentiment
+from financial communications.
+
+For external sector data specifically, the Baltic Dry Index has long been
+used as a leading indicator for trade, and recent work with AIS vessel
+tracking and satellite imagery of ports suggests these sources could
+provide very early signals of trade disruptions.  The contribution of
+this thesis is to systematically quantify the incremental value of these
+data categories for BoP estimation.
+
+
+3.  Research Questions and Thesis Structure
+================================================================================
+
+The thesis is organised as three self-contained essays ("thesis by
+articles" format, or "these sur articles"), each addressing a distinct
+research question:
+
+Chapter 1: AI vs. Econometrics for BoP Nowcasting --
+           Which models work best?
+
+    The first chapter conducts a systematic horse race between econometric
+    and machine learning approaches for BoP nowcasting.  Using quarterly
+    current account and monthly goods trade balance data for France
+    (2000--2022), it compares autoregressive benchmarks (AR(1), AR(p)),
+    regularised linear models (Ridge), tree-based ensembles (Gradient
+    Boosting, XGBoost), and a recurrent neural network (LSTM).
+
+    The evaluation follows a pseudo real-time expanding-window protocol
+    with Diebold-Mariano significance tests.  The central finding is that
+    Ridge regression delivers the most robust improvement: 26.6% RMSE
+    reduction at quarterly frequency (p = 0.012) and 21.9% at monthly
+    frequency.  LSTM fails entirely, confirming that deep learning needs
+    larger samples than macroeconomic settings provide.  These results
+    establish Ridge as the base model for subsequent chapters.
+
+Chapter 2: The Value of Alternative Data for BoP Estimation --
+           Which data sources help?
+
+    Building on Chapter 1's base model, the second chapter conducts a
+    structured ablation study to quantify the incremental value of four
+    categories of alternative data: trade-activity proxies (Baltic Dry
+    Index, container throughput), financial-flow indicators (exchange rate
+    volatility, CDS spreads), text and sentiment data (FinBERT-based ECB
+    communication analysis, geopolitical risk indices, Google Trends), and
+    satellite/geospatial proxies (nighttime light intensity).
+
+    Using monthly data for France (2008--2022), the chapter measures each
+    category's contribution via RMSE reduction and SHAP-based feature
+    importance decomposition.  The full model incorporating all categories
+    achieves a 3.3% RMSE reduction over the baseline Ridge, with text and
+    sentiment data providing the largest individual contribution.  These
+    results quantify the return on investment for central banks considering
+    alternative data infrastructure.
+
+Chapter 3: Policy Implications -- Do better estimates matter?
+
+    The third chapter bridges the gap between statistical accuracy and
+    policy relevance.  It asks whether the ML-enhanced BoP estimates from
+    Chapters 1--2 would have produced materially different policy signals
+    during four major episodes: the 2008 Global Financial Crisis, the
+    2015 refugee and remittance shock, the 2020 COVID-19 trade collapse,
+    and the 2022 energy crisis.
+
+    The chapter extends the analysis to four Eurozone countries (France,
+    Germany, Italy, Spain) to test cross-country generalisability, and
+    conducts a counterfactual exercise comparing policy recommendations
+    based on AI-enhanced versus traditional estimates.  It proposes a
+    cost-benefit framework for central banks to evaluate alternative data
+    investments.
+
+
+4.  Data
+================================================================================
+
+The thesis uses two principal data sources:
+
+    Official statistics:  Quarterly and monthly BoP components from the
+    ECB Statistical Data Warehouse and Eurostat (publicly available).
+    Standard macroeconomic indicators -- GDP, industrial production, HICP,
+    exchange rates, interest rates -- from the ECB and OECD.  Coverage:
+    2000--2022 (quarterly), 2008--2022 (monthly).
+
+    Alternative data sources (Chapter 2):  Baltic Dry Index (public),
+    OECD export container throughput index (public), EUR/USD exchange rate
+    volatility (computed from ECB daily data), geopolitical risk index
+    (Caldara-Iacoviello, public), Google Trends for trade-related keywords
+    (public API), nighttime light intensity (NASA/NOAA, public), and
+    FinBERT sentiment scores extracted from ECB press conference
+    transcripts (public text, proprietary NLP model).
+
+    All data sources are either publicly available or accessible through
+    standard institutional channels, ensuring full reproducibility.
+
+
+5.  Methodology
+================================================================================
+
+The methodological approach is designed to be rigorous and reproducible:
+
+    Pseudo real-time evaluation:  All models are evaluated using an
+    expanding-window protocol that mimics real-time forecasting conditions.
+    At each step, only information available at the forecast date is used.
+    Features are standardised using only the training window to prevent
+    lookahead bias.
+
+    Statistical testing:  Forecast comparisons use the Diebold-Mariano
+    (1995) test with Newey-West HAC standard errors for pairwise
+    comparisons.  The Giacomini-White (2006) test is used for conditional
+    predictive ability assessment.
+
+    Feature importance:  SHAP values (Lundberg and Lee, 2017) decompose
+    each prediction into feature contributions, providing both global
+    interpretability (which features matter on average) and local
+    interpretability (what drove a specific forecast).
+
+    Reproducibility:  All code, data pipelines, and configuration files
+    are maintained in a version-controlled repository.  The analysis uses
+    Python with standard scientific computing libraries (scikit-learn,
+    XGBoost, PyTorch, statsmodels).
+
+
+6.  Main Findings -- Preview
+================================================================================
+
+Without pre-empting the detailed results in each chapter, we summarise the
+three principal findings here:
+
+    (i)   Ridge regression is the best-performing model for BoP nowcasting
+          in a small-sample macroeconomic setting.  Its improvement over
+          autoregressive benchmarks is economically meaningful (quarterly
+          forecast errors shrink by approximately EUR 2.4 billion) and
+          statistically significant.  This result is consistent with the
+          broader machine learning for macro literature and provides a
+          clear practical recommendation for central banks.
+
+    (ii)  Alternative data sources provide measurable but modest
+          incremental value.  Text and sentiment analysis of ECB
+          communications contributes the most among alternative data
+          categories, consistent with the hypothesis that qualitative
+          forward guidance contains information about future external
+          balances.  The improvement is small in percentage terms but
+          the marginal cost of sentiment extraction is also low once the
+          NLP infrastructure is in place.
+
+    (iii) Model-enhanced estimates would have provided earlier warning
+          of external sector deterioration during crisis episodes,
+          particularly during the 2022 energy shock when France's current
+          account deteriorated sharply.  Cross-country results show that
+          model performance is relatively stable across Eurozone economies,
+          supporting deployment at the ECB level.
+
+
+7.  Thesis Contribution to the Literature
+================================================================================
+
+This thesis makes three distinct contributions:
+
+    Methodological:  First systematic application of ML horse race
+    methodology -- well-established for GDP -- to Balance of Payments
+    components.  This includes dual-frequency evaluation (quarterly and
+    monthly), structured ablation study for alternative data, and
+    cross-country generalisability testing.
+
+    Empirical:  Comprehensive empirical assessment for France and three
+    comparison Eurozone countries, using both traditional and alternative
+    data sources, covering a 22-year period that includes multiple crisis
+    episodes.
+
+    Policy:  Direct operational relevance for central banks and
+    statistical offices.  The findings translate into practical
+    recommendations about which models and data sources to invest in,
+    with cost-benefit quantification.
+
+
+8.  Road Map
+================================================================================
+
+The remainder of this thesis is organised as follows:
+
+    Chapter 1 presents the horse race between machine learning and
+    econometric models for BoP nowcasting, establishing Ridge regression
+    as the preferred approach and documenting the failure of LSTM in the
+    small-sample regime.
+
+    Chapter 2 builds on the Ridge baseline to quantify the incremental
+    value of four categories of alternative data, using a structured
+    ablation study and SHAP-based importance decomposition.
+
+    Chapter 3 extends the analysis to four Eurozone countries and
+    connects statistical accuracy to policy relevance through crisis
+    episode analysis and counterfactual exercises.
+
+    A General Conclusion synthesises the findings, discusses limitations,
+    and outlines directions for future research.
+
+
+================================================================================
+REFERENCES (General Introduction)
+================================================================================
+
+Aprigliano, V., Ardizzi, G., & Monteforte, L. (2019). Using Payment System
+    Data to Forecast the Italian GDP. International Journal of Central Banking.
+
+Araci, D. (2019). FinBERT: Financial Sentiment Analysis with Pre-Trained
+    Language Models. arXiv preprint arXiv:1908.10063.
+
+Babii, A., Ghysels, E., & Striaukas, J. (2022). Machine Learning Time Series
+    Regressions with an Application to Nowcasting. Journal of Business &
+    Economic Statistics, 40(3), 1094--1106.
+
+Banbura, M., Giannone, D., & Reichlin, L. (2010). Large Bayesian VARs.
+    Journal of Applied Econometrics, 25(1), 71--92.
+
+Banbura, M., Giannone, D., Modugno, M., & Reichlin, L. (2013). Now-Casting
+    and the Real-Time Data Flow. In: Handbook of Economic Forecasting.
+
+Bok, B., Caratelli, D., Giannone, D., Sbordone, A., & Tambalotti, A. (2018).
+    Macroeconomic Nowcasting and Forecasting with Big Data. Annual Review of
+    Economics, 10, 615--643.
+
+Caldara, D. & Iacoviello, M. (2022). Measuring Geopolitical Risk. American
+    Economic Review, 112(4), 1194--1225.
+
+Diebold, F.X. & Mariano, R.S. (1995). Comparing Predictive Accuracy. Journal
+    of Business & Economic Statistics, 13(3), 253--263.
+
+Giacomini, R. & White, H. (2006). Tests of Conditional Predictive Ability.
+    Econometrica, 74(6), 1545--1578.
+
+Giannone, D., Reichlin, L., & Small, D. (2008). Nowcasting: The Real-Time
+    Informational Content of Macroeconomic Data. Journal of Monetary Economics,
+    55(4), 665--676.
+
+Goulet Coulombe, P., Leroux, M., Stevanovic, D., & Surprenant, S. (2022).
+    How is Machine Learning Useful for Macroeconomic Forecasting? Journal of
+    Applied Econometrics, 37(5), 920--964.
+
+Lundberg, S.M. & Lee, S.-I. (2017). A Unified Approach to Interpreting Model
+    Predictions. Advances in Neural Information Processing Systems, 30.
+
+Medeiros, M.C., Vasconcelos, G.F.R., Veiga, A., & Zilberman, E. (2021).
+    Forecasting Inflation in a Data-Rich Environment. Journal of Applied
+    Econometrics, 36(4), 527--544.
+
+Woloszko, N. (2020). Tracking Activity in Real Time with Google Trends.
+    OECD Economics Department Working Papers, No. 1634.
