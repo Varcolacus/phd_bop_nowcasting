@@ -328,7 +328,7 @@ ECB monetary policy press conference transcripts are scraped from the official E
   \item \textbf{Sentiment dispersion:} Standard deviation of sentence-level scores, capturing communication uncertainty.
 \end{itemize}
 
-\paragraph{Coverage.}  Of 148 known ECB press conference dates, our web scraper successfully retrieves transcripts for a subset (approximately 13\%).  For dates where scraping fails, we interpolate using the nearest available sentiment value.  This limited coverage is a weakness; direct PDF parsing of monetary policy decision documents or use of the ECB's bulk data API could substantially increase coverage.
+\paragraph{Coverage.}  Of 148 known ECB press conference dates (2008--2022), our web scraper attempts multiple URL patterns per date---including introductory statements, monetary policy decisions, combined statements (post-2019), and PDF documents---across both year-specific archive pages and the main press conference listing.  Coverage is environment-dependent: in favourable conditions, the scraper retrieves up to~20 transcripts; in restrictive network settings, retrieval may fail entirely due to the ECB's use of JavaScript rendering and hash-based URLs for post-2015 documents.  When real text coverage falls below~5 transcripts, the pipeline defaults to a synthetic sentiment proxy calibrated on crisis timing.  Extending coverage further would require either the ECB's official bulk data download API or manual assembly of a local transcript corpus; we leave this for future work.
 
 \subsection{BdF Business Climate Indicator}
 

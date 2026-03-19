@@ -340,6 +340,38 @@ def run_nlp_pipeline(start_year=2008, end_year=2022):
     discovered_urls = {}
     consecutive_failures = 0
     MAX_CONSECUTIVE_FAILURES = 8  # Give up on archive scraping after 8 failures
+
+    # Try the main press conference listing page (all years)
+    main_listing_urls = [
+        "https://www.ecb.europa.eu/press/pressconf/html/index.en.html",
+        "https://www.ecb.europa.eu/press/pressconf/html/index_include.en.html",
+        "https://www.ecb.europa.eu/press/key/html/index.en.html",
+    ]
+    for listing_url in main_listing_urls:
+        try:
+            resp = requests.get(listing_url, timeout=15, verify=False,
+                                headers={"User-Agent": "Mozilla/5.0"})
+            if resp.status_code == 200:
+                soup = BeautifulSoup(resp.text, "lxml")
+                for link in soup.find_all("a", href=True):
+                    href = link["href"]
+                    if not href.endswith(".en.html") and not href.endswith(".en.pdf"):
+                        continue
+                    for date, date_str in statement_dates:
+                        yy = f"{date.year % 100:02d}"
+                        mm = f"{date.month:02d}"
+                        dd = f"{date.day:02d}"
+                        yyyymmdd = f"{date.year}{mm}{dd}"
+                        if (f"is{yy}{mm}{dd}" in href or f"is{yyyymmdd}" in href or
+                            f"mp{yy}{mm}{dd}" in href or f"mp{yyyymmdd}" in href or
+                            f"mps{yy}{mm}{dd}" in href or f"mps{yyyymmdd}" in href or
+                            f"ds{yyyymmdd}" in href or f"sp{yy}{mm}{dd}" in href):
+                            full_url = href if href.startswith("http") else f"https://www.ecb.europa.eu{href}"
+                            discovered_urls[date_str] = full_url
+        except Exception:
+            pass
+
+    # Year-specific archive pages
     for yr in range(start_year, end_year + 1):
         if consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
             print(f"    [INFO] Archive scraping aborted after {MAX_CONSECUTIVE_FAILURES} consecutive failures")
@@ -364,7 +396,7 @@ def run_nlp_pipeline(start_year=2008, end_year=2022):
                     links = soup.find_all("a", href=True)
                     for link in links:
                         href = link["href"]
-                        if href.endswith(".en.html"):
+                        if href.endswith(".en.html") or href.endswith(".en.pdf"):
                             for date, date_str in statement_dates:
                                 if date.year == yr:
                                     yy = f"{date.year % 100:02d}"
@@ -377,9 +409,15 @@ def run_nlp_pipeline(start_year=2008, end_year=2022):
                                         f"pr{yy}{mm}{dd}" in href or
                                         f"mp{yy}{mm}{dd}" in href or
                                         f"mp{yyyymmdd}" in href or
-                                        f"ecb.mp{yy}{mm}{dd}" in href):
+                                        f"mps{yy}{mm}{dd}" in href or
+                                        f"mps{yyyymmdd}" in href or
+                                        f"ecb.mp{yy}{mm}{dd}" in href or
+                                        f"ds{yyyymmdd}" in href or
+                                        f"sp{yy}{mm}{dd}" in href):
                                         full_url = href if href.startswith("http") else f"https://www.ecb.europa.eu{href}"
                                         discovered_urls[date_str] = full_url
+                else:
+                    consecutive_failures += 1
             except Exception:
                 consecutive_failures += 1
 
@@ -395,7 +433,7 @@ def run_nlp_pipeline(start_year=2008, end_year=2022):
             soup = BeautifulSoup(resp.text, "lxml")
             for link in soup.find_all("a", href=True):
                 href = link["href"]
-                if "monetary" in href.lower() or "ecb.mp" in href.lower():
+                if "monetary" in href.lower() or "ecb.mp" in href.lower() or "ecb.is" in href.lower() or "ecb.mps" in href.lower():
                     for date, date_str in statement_dates:
                         yy = f"{date.year % 100:02d}"
                         mm = f"{date.month:02d}"
@@ -408,7 +446,7 @@ def run_nlp_pipeline(start_year=2008, end_year=2022):
 
     consecutive_url_failures = 0
     for date, date_str in statement_dates:
-        if consecutive_url_failures >= 15:
+        if consecutive_url_failures >= 25:
             print(f"    [INFO] Aborting text fetch after {consecutive_url_failures} consecutive failures")
             break
         yy = f"{date.year % 100:02d}"
@@ -434,11 +472,20 @@ def run_nlp_pipeline(start_year=2008, end_year=2022):
             f"https://www.ecb.europa.eu/press/pr/date/{yyyy}/html/ecb.mp{yy}{mm}{dd}.en.html",
             # Combined statement format (post-2019 switch)
             f"https://www.ecb.europa.eu/press/pressconf/shared/pdf/ecb.ds{yyyymmdd}.en.pdf",
-            # Monetary policy statement (alternate path)
+            # Monetary policy decisions (full-year date)
             f"https://www.ecb.europa.eu/press/pr/date/{yyyy}/html/ecb.mp{yyyymmdd}.en.html",
             # Press conference transcript page
             f"https://www.ecb.europa.eu/press/pressconf/{yyyy}/html/ecb.is{yyyymmdd}.en.html",
             f"https://www.ecb.europa.eu/press/pressconf/{yyyy}/html/ecb.is{yy}{mm}{dd}.en.html",
+            # Monetary policy statement (post-2019 combined format)
+            f"https://www.ecb.europa.eu/press/pressconf/{yyyy}/html/ecb.mps{yyyymmdd}.en.html",
+            f"https://www.ecb.europa.eu/press/pressconf/{yyyy}/html/ecb.mps{yy}{mm}{dd}.en.html",
+            # Statement point / speech format
+            f"https://www.ecb.europa.eu/press/pressconf/{yyyy}/html/ecb.sp{yyyymmdd}.en.html",
+            f"https://www.ecb.europa.eu/press/pressconf/{yyyy}/html/ecb.sp{yy}{mm}{dd}.en.html",
+            # Monetary policy decisions PDF
+            f"https://www.ecb.europa.eu/press/pr/date/{yyyy}/html/ecb.mp{yy}{mm}{dd}.en.pdf",
+            f"https://www.ecb.europa.eu/press/pr/date/{yyyy}/html/ecb.mp{yyyymmdd}.en.pdf",
         ])
 
         found_text = False

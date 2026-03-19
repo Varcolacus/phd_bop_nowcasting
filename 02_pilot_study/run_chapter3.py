@@ -894,6 +894,100 @@ def run_part_c(df_fr, models_fr):
 
     delta_hat = ols_model.params[3]  # coefficient on ca_gap
 
+    # ----- Step 1b: IV / 2SLS robustness check -----
+    print("\n  IV / 2SLS robustness check for Taylor rule:")
+    print("  Endogenous: i_{t-1}  |  Excluded instruments: i_{t-2}, i_{t-3}, gap lags")
+
+    df_iv = df_est.copy()
+    df_iv["infl_gap_L1"] = df_iv["inflation_gap"].shift(1)
+    df_iv["out_gap_L1"] = df_iv["output_gap"].shift(1)
+    df_iv["ca_gap_L1"] = df_iv["ca_gap"].shift(1)
+    df_iv["ir_L2"] = df_iv["interest_rate"].shift(2)
+    df_iv["ir_L3"] = df_iv["interest_rate"].shift(3)
+    df_iv = df_iv.dropna()
+
+    n_iv = len(df_iv)
+    y_iv = df_iv["interest_rate"].values
+
+    # Exogenous included regressors: const, infl_gap, output_gap, ca_gap
+    W_iv = sm.add_constant(df_iv[["inflation_gap", "output_gap", "ca_gap"]].values)
+    # Endogenous regressor
+    Y2_iv = df_iv["interest_rate_lag1"].values
+    # Excluded instruments
+    Z_excl = df_iv[["infl_gap_L1", "out_gap_L1", "ca_gap_L1",
+                     "ir_L2", "ir_L3"]].values
+
+    # Full instrument set (included + excluded)
+    Z_iv = np.column_stack([W_iv, Z_excl])
+    # Full regressor matrix
+    X_iv = np.column_stack([W_iv, Y2_iv])
+
+    try:
+        # First stage: regress endogenous on full instrument set
+        fs_full = sm.OLS(Y2_iv, Z_iv).fit()
+        fs_restricted = sm.OLS(Y2_iv, W_iv).fit()
+        k_excl = Z_excl.shape[1]
+        F_first = ((fs_restricted.ssr - fs_full.ssr) / k_excl) / (
+            fs_full.ssr / (n_iv - Z_iv.shape[1]))
+        print(f"  First-stage F = {F_first:.1f}", end="")
+        if F_first > 10:
+            print("  [OK, F > 10 -- not weak]")
+        else:
+            print("  [WARN, F < 10 -- weak instruments]")
+
+        # 2SLS: beta = (X' P_Z X)^{-1} X' P_Z y
+        ZtZ_inv = np.linalg.inv(Z_iv.T @ Z_iv)
+        PZ = Z_iv @ ZtZ_inv @ Z_iv.T
+        XPZ_X = X_iv.T @ PZ @ X_iv
+        XPZ_X_inv = np.linalg.inv(XPZ_X)
+        beta_iv = XPZ_X_inv @ (X_iv.T @ PZ @ y_iv)
+
+        resid_iv = y_iv - X_iv @ beta_iv
+        sigma2_iv = resid_iv @ resid_iv / (n_iv - X_iv.shape[1])
+        V_iv = sigma2_iv * XPZ_X_inv
+        se_iv = np.sqrt(np.diag(V_iv))
+
+        # Sargan-Hansen J-test (overidentification)
+        j_reg = sm.OLS(resid_iv, Z_iv).fit()
+        J_stat = n_iv * j_reg.rsquared
+        j_df = k_excl - 1  # #excluded_instruments - #endogenous
+        from scipy import stats as sp_stats
+        j_pval = 1 - sp_stats.chi2.cdf(J_stat, j_df)
+
+        iv_names = ["const", "inflation_gap", "output_gap", "ca_gap", "i_{t-1}"]
+        print(f"\n  {'Param':<20} {'2SLS':>10} {'SE':>10} {'OLS':>10} {'Diff':>10}")
+        print("  " + "-" * 62)
+        for i, pn in enumerate(iv_names):
+            print(f"  {pn:<20} {beta_iv[i]:>10.4f} {se_iv[i]:>10.4f}"
+                  f" {ols_model.params[i]:>10.4f} {beta_iv[i]-ols_model.params[i]:>+10.4f}")
+
+        print(f"\n  Sargan-Hansen J = {J_stat:.3f} (p = {j_pval:.3f}, df = {j_df})")
+        if j_pval > 0.05:
+            print("  [OK] Cannot reject instrument validity")
+        else:
+            print("  [NOTE] J-test rejects at 5%")
+
+        max_abs_diff = np.max(np.abs(beta_iv - ols_model.params))
+        print(f"  Max |2SLS - OLS| = {max_abs_diff:.4f}")
+        if max_abs_diff < 0.05:
+            print("  [OK] 2SLS close to OLS -- endogeneity of i_{t-1} not a concern")
+
+        # Save IV results
+        iv_df = pd.DataFrame({
+            "parameter": iv_names,
+            "ols_coef": ols_model.params,
+            "ols_se": ols_model.bse,
+            "iv_2sls_coef": beta_iv,
+            "iv_2sls_se": se_iv,
+        })
+        iv_path = CH3_OUTPUT / "ch3_taylor_iv_robustness.csv"
+        iv_df.to_csv(iv_path, index=False)
+        print(f"  Saved: {iv_path.name}")
+
+    except Exception as e:
+        print(f"  [WARN] IV estimation failed: {e}")
+        beta_iv = None
+
     # ----- Step 2: Build nowcast and lagged series -----
     # Extract model predictions aligned with dates
     ridge_res = models_fr.get("Ridge")
