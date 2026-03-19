@@ -6,4 +6,4 @@ cds_spread,real
 tpu,real
 gtrends,real
 ntl,real
-ecb_sentiment,synthetic
+ecb_sentiment,real

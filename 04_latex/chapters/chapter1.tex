@@ -94,7 +94,7 @@ We evaluate nine models spanning four methodological families:
 
 \paragraph{Machine Learning -- Linear.}
 \begin{itemize}
-  \item \textbf{Ridge regression:} $\ell_2$-penalised OLS with regularisation parameter $\alpha$ selected by leave-one-out cross-validation \citep{hoerl1970ridge}.  All predictors are standardised before estimation.
+  \item \textbf{Ridge regression:} $\ell_2$-penalised OLS with regularisation parameter $\alpha$ selected by efficient leave-one-out cross-validation (LOOCV) over the grid $\alpha \in \{0.01, 0.1, 1, 10, 100\}$ using \texttt{sklearn.linear\_model.RidgeCV} \citep{hoerl1970ridge}.  The LOOCV selector is re-evaluated at each expanding-window step so that $\alpha$ adapts to the growing training sample.  All predictors are standardised to zero mean and unit variance before estimation.
 \end{itemize}
 
 \paragraph{Machine Learning -- Nonlinear.}

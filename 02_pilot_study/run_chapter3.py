@@ -150,6 +150,40 @@ def download_monthly_for_country(cc):
             except Exception as e:
                 print(f"      [WARN] OECD extension failed: {e}")
 
+    # FRED fallback for trade_goods if ECB download failed (e.g., Spain)
+    if "trade_goods" not in results and cc in ("ES", "DE", "IT"):
+        print(f"    [{cc}/trade_goods] ECB BP6 unavailable, trying FRED OECD exports-imports...")
+        cc_fred = {"ES": "ES", "DE": "DE", "IT": "IT"}[cc]
+        try:
+            from io import StringIO as _SIO
+            fred_url = "https://fred.stlouisfed.org/graph/fredgraph.csv"
+            exp_resp = requests.get(fred_url, params={
+                "id": f"XTEXVA01{cc_fred}M667S",
+                "cosd": "2003-01-01", "coed": "2024-12-31"},
+                timeout=20, verify=False)
+            imp_resp = requests.get(fred_url, params={
+                "id": f"XTIMVA01{cc_fred}M667S",
+                "cosd": "2003-01-01", "coed": "2024-12-31"},
+                timeout=20, verify=False)
+            if exp_resp.status_code == 200 and imp_resp.status_code == 200:
+                exp_df = pd.read_csv(_SIO(exp_resp.text))
+                imp_df = pd.read_csv(_SIO(imp_resp.text))
+                exp_df.columns = ["date", "exports"]
+                imp_df.columns = ["date", "imports"]
+                exp_df["date"] = pd.to_datetime(exp_df["date"])
+                imp_df["date"] = pd.to_datetime(imp_df["date"])
+                oecd = exp_df.merge(imp_df, on="date")
+                oecd["exports"] = pd.to_numeric(oecd["exports"], errors="coerce")
+                oecd["imports"] = pd.to_numeric(oecd["imports"], errors="coerce")
+                oecd = oecd.dropna()
+                oecd["value"] = (oecd["exports"] - oecd["imports"]) / 1e6
+                if len(oecd) > 24:
+                    results["trade_goods"] = oecd[["date", "value"]].copy()
+                    print(f"      [OK] FRED trade balance: {len(oecd)} obs "
+                          f"({oecd['date'].min():%Y-%m} to {oecd['date'].max():%Y-%m})")
+        except Exception as e:
+            print(f"      [WARN] FRED fallback failed: {e}")
+
     return results
 
 
@@ -987,6 +1021,60 @@ def run_part_c(df_fr, models_fr):
     except Exception as e:
         print(f"  [WARN] IV estimation failed: {e}")
         beta_iv = None
+
+    # ----- Step 1c: Prais-Winsten GLS robustness (DW = 0.60 fix) -----
+    print("\n  Prais-Winsten GLS robustness check for serial correlation:")
+    try:
+        # Estimate rho from OLS residuals
+        resid_ols = ols_model.resid
+        rho_hat = np.corrcoef(resid_ols[:-1], resid_ols[1:])[0, 1]
+        print(f"  Estimated AR(1) rho = {rho_hat:.4f}")
+
+        # Transform y and X via Prais-Winsten
+        N_pw = len(y_ols)
+        y_pw = np.zeros(N_pw)
+        X_pw = np.zeros_like(X_ols)
+
+        # First observation: sqrt(1 - rho^2) scaling
+        w0 = np.sqrt(1 - rho_hat ** 2)
+        y_pw[0] = w0 * y_ols[0]
+        X_pw[0] = w0 * X_ols[0]
+
+        # Remaining: quasi-difference
+        for t in range(1, N_pw):
+            y_pw[t] = y_ols[t] - rho_hat * y_ols[t - 1]
+            X_pw[t] = X_ols[t] - rho_hat * X_ols[t - 1]
+
+        gls_model = sm.OLS(y_pw, X_pw).fit()
+
+        print(f"\n  {'Param':<20} {'GLS':>10} {'SE':>10} {'OLS':>10} {'Diff':>10}")
+        print("  " + "-" * 62)
+        for i, pname in enumerate(param_names):
+            print(f"  {pname:<20} {gls_model.params[i]:>10.4f} {gls_model.bse[i]:>10.4f}"
+                  f" {ols_model.params[i]:>10.4f}"
+                  f" {gls_model.params[i]-ols_model.params[i]:>+10.4f}")
+
+        dw_gls = durbin_watson(gls_model.resid)
+        print(f"\n  GLS R-sq = {gls_model.rsquared:.4f},  DW = {dw_gls:.3f}")
+
+        max_abs_gls = np.max(np.abs(gls_model.params - ols_model.params))
+        print(f"  Max |GLS - OLS| = {max_abs_gls:.4f}")
+        if max_abs_gls < 0.05:
+            print("  [OK] GLS close to OLS -- autocorrelation does not bias coefficients")
+
+        gls_df = pd.DataFrame({
+            "parameter": param_names,
+            "ols_coef": ols_model.params,
+            "ols_se": ols_model.bse,
+            "gls_coef": gls_model.params,
+            "gls_se": gls_model.bse,
+        })
+        gls_path = CH3_OUTPUT / "ch3_taylor_gls_robustness.csv"
+        gls_df.to_csv(gls_path, index=False)
+        print(f"  Saved: {gls_path.name}")
+
+    except Exception as e:
+        print(f"  [WARN] Prais-Winsten GLS failed: {e}")
 
     # ----- Step 2: Build nowcast and lagged series -----
     # Extract model predictions aligned with dates

@@ -1008,6 +1008,144 @@ def main():
             print(f"  [WARN] SHAP decomposition failed: {e}")
 
     # ---------------------------------------------------------------
+    # Phase 9: Pseudo-Real-Time Vintage Robustness
+    # ---------------------------------------------------------------
+    print("\n" + "=" * 70)
+    print("  PSEUDO-REAL-TIME VINTAGE ROBUSTNESS")
+    print("=" * 70)
+    print("  Simulating data revisions (Eurostat revision statistics):")
+    print("  Gaussian noise, std = 3% of level, applied to trade_goods target")
+
+    vintage_rows = []
+    n_mc = 50
+    revision_std_frac = 0.03  # 3% of level — consistent with EU trade revision stats
+
+    target_std = df[target_col].std()
+    revision_sigma = revision_std_frac * df[target_col].abs().mean()
+
+    np.random.seed(2026)
+    for mc_iter in range(n_mc):
+        df_noisy = df.copy()
+        noise = np.random.normal(0, revision_sigma, size=len(df_noisy))
+        df_noisy[target_col] = df_noisy[target_col] + noise
+
+        for spec_name in ["M0", "M5"]:
+            alt_feats = SPECIFICATIONS[spec_name]
+            mods = ablation_expanding_window(
+                df_noisy, target_col, baseline_features, alt_feats,
+                min_train_size=60, step=1
+            )
+            for mname in ["Ridge"]:
+                rmse_v = mods.get(mname, ForecastResult("")).rmse
+                if rmse_v:
+                    vintage_rows.append({
+                        "mc_iter": mc_iter, "spec": spec_name,
+                        "model": mname, "rmse": rmse_v,
+                    })
+
+        if (mc_iter + 1) % 10 == 0:
+            print(f"    MC iteration {mc_iter+1}/{n_mc} done")
+
+    if vintage_rows:
+        vdf = pd.DataFrame(vintage_rows)
+        # Compare M0 vs M5 under revision noise
+        m0_rmses = vdf[(vdf["spec"] == "M0") & (vdf["model"] == "Ridge")]["rmse"]
+        m5_rmses = vdf[(vdf["spec"] == "M5") & (vdf["model"] == "Ridge")]["rmse"]
+        if len(m0_rmses) > 0 and len(m5_rmses) > 0:
+            m0_mean = m0_rmses.mean()
+            m5_mean = m5_rmses.mean()
+            pct_gain = (m5_mean - m0_mean) / m0_mean * 100
+            print(f"\n  Results over {n_mc} MC replications (revision noise std = {revision_sigma:,.0f}):")
+            print(f"    M0 Ridge mean RMSE:  {m0_mean:,.0f} (sd {m0_rmses.std():,.0f})")
+            print(f"    M5 Ridge mean RMSE:  {m5_mean:,.0f} (sd {m5_rmses.std():,.0f})")
+            print(f"    M5 vs M0:            {pct_gain:+.1f}%")
+            # Fraction of MC where M5 beats M0
+            if len(m0_rmses) == len(m5_rmses):
+                frac_better = np.mean(m5_rmses.values < m0_rmses.values)
+                print(f"    Fraction M5 < M0:    {frac_better:.0%}")
+
+        vdf.to_csv(CH2_OUTPUT / "vintage_robustness.csv", index=False)
+        print(f"  Saved vintage_robustness.csv")
+
+    # ---------------------------------------------------------------
+    # Phase 10: MCS Power Analysis (Monte Carlo)
+    # ---------------------------------------------------------------
+    print("\n" + "=" * 70)
+    print("  MCS POWER ANALYSIS (Monte Carlo)")
+    print("=" * 70)
+
+    T_oos_actual = 0
+    if "M0" in all_results:
+        r0 = all_results["M0"].get("Ridge", ForecastResult(""))
+        if r0.rmse and r0.predictions:
+            T_oos_actual = len([p for p in r0.predictions if not np.isnan(p)])
+
+    if T_oos_actual >= 20:
+        n_mc_power = 500
+        effect_size_pct = 7.7  # matches observed M5 improvement
+        T_sim = T_oos_actual
+        alpha_mcs = 0.10
+        np.random.seed(42)
+
+        # Under DGP where Model B is truly effect_size_pct% better than Model A
+        # Generate squared errors and test whether MCS eliminates A
+        rejections = 0
+        for mc_i in range(n_mc_power):
+            # Model A (baseline): squared errors ~ chi2(1) * sigma^2
+            sigma_a = 1.0
+            sigma_b = sigma_a * (1 - effect_size_pct / 100)
+            e2_a = np.random.exponential(sigma_a ** 2, size=T_sim)
+            e2_b = np.random.exponential(sigma_b ** 2, size=T_sim)
+
+            # Simple two-model MCS: test H0: equal predictive ability
+            d_ij = e2_a - e2_b  # positive = A worse than B
+            T_d = len(d_ij)
+            d_mean = d_ij.mean()
+            d_std = d_ij.std(ddof=1)
+            if d_std > 0:
+                t_stat = d_mean / (d_std / np.sqrt(T_d))
+            else:
+                t_stat = 0
+            # Bootstrap p-value (block bootstrap)
+            block_len = max(1, int(np.sqrt(T_d)))
+            n_blocks = T_d // block_len + 1
+            boot_t = np.zeros(1000)
+            for b in range(1000):
+                idx = np.concatenate([
+                    np.arange(start, min(start + block_len, T_d))
+                    for start in np.random.randint(0, T_d, size=n_blocks)
+                ])[:T_d]
+                d_boot = d_ij[idx]
+                d_b_mean = d_boot.mean()
+                d_b_std = d_boot.std(ddof=1)
+                if d_b_std > 0:
+                    boot_t[b] = (d_b_mean - d_mean) / (d_b_std / np.sqrt(T_d))
+                else:
+                    boot_t[b] = 0
+            p_val = np.mean(np.abs(boot_t) >= np.abs(t_stat))
+            if p_val < alpha_mcs:
+                rejections += 1
+
+        power = rejections / n_mc_power
+        print(f"  DGP: Model B is {effect_size_pct}% better than Model A (RMSE)")
+        print(f"  T = {T_sim}, alpha = {alpha_mcs}, MC replications = {n_mc_power}")
+        print(f"  Empirical power = {power:.1%}")
+        if power < 0.50:
+            print(f"  -> Low power confirms that MCS retaining all models")
+            print(f"     is expected given T = {T_sim} and effect = {effect_size_pct}%")
+
+        pd.DataFrame([{
+            "effect_size_pct": effect_size_pct,
+            "T_oos": T_sim,
+            "alpha": alpha_mcs,
+            "n_mc": n_mc_power,
+            "power": power,
+        }]).to_csv(CH2_OUTPUT / "mcs_power_analysis.csv", index=False)
+        print(f"  Saved mcs_power_analysis.csv")
+    else:
+        print(f"  [WARN] T_oos = {T_oos_actual}, too small for power analysis")
+
+    # ---------------------------------------------------------------
     # Save results
     # ---------------------------------------------------------------
     pd.DataFrame(summary_rows).to_csv(CH2_OUTPUT / "ablation_results.csv", index=False)

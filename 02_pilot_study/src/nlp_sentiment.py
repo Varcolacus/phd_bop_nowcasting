@@ -137,6 +137,28 @@ def get_ecb_statement_urls(start_year=2008, end_year=2022):
     return statements
 
 
+def _extract_ecb_text(soup):
+    """Extract press conference text from an ECB HTML page.
+
+    The ECB website stores statement text across multiple
+    ``<div class="section">`` elements.  Collect ALL such divs
+    and gather every ``<p>`` inside them.  Fall back to ``<article>``
+    or ``<div id="main-wrapper">`` if no section divs are found.
+    """
+    sections = soup.find_all("div", class_="section")
+    if sections:
+        paragraphs = []
+        for sec in sections:
+            paragraphs.extend(sec.find_all("p"))
+    else:
+        content = soup.find("article") or soup.find("div", id="main-wrapper")
+        paragraphs = content.find_all("p") if content else []
+
+    text = "\n".join(p.get_text(strip=True) for p in paragraphs
+                     if len(p.get_text(strip=True)) > 20)
+    return text
+
+
 def scrape_ecb_statement(url):
     """
     Scrape the text of an ECB press conference statement from its URL.
@@ -144,25 +166,11 @@ def scrape_ecb_statement(url):
     """
     try:
         from bs4 import BeautifulSoup
-        resp = requests.get(url, timeout=30, verify=False)
+        resp = requests.get(url, timeout=30, verify=False,
+                            headers={"User-Agent": "Mozilla/5.0"})
         resp.raise_for_status()
         soup = BeautifulSoup(resp.text, "lxml")
-
-        # ECB statements have the main text in div with class 'section'
-        # or in the main content area
-        content = soup.find("div", class_="section")
-        if content is None:
-            content = soup.find("div", id="main-wrapper")
-        if content is None:
-            content = soup.find("article")
-        if content is None:
-            return ""
-
-        # Get paragraphs
-        paragraphs = content.find_all("p")
-        text = "\n".join(p.get_text(strip=True) for p in paragraphs)
-        return text
-
+        return _extract_ecb_text(soup)
     except Exception:
         return ""
 
@@ -446,7 +454,7 @@ def run_nlp_pipeline(start_year=2008, end_year=2022):
 
     consecutive_url_failures = 0
     for date, date_str in statement_dates:
-        if consecutive_url_failures >= 25:
+        if consecutive_url_failures >= 40:
             print(f"    [INFO] Aborting text fetch after {consecutive_url_failures} consecutive failures")
             break
         yy = f"{date.year % 100:02d}"
@@ -462,12 +470,17 @@ def run_nlp_pipeline(start_year=2008, end_year=2022):
             urls_to_try.append(discovered_urls[date_str])
 
         urls_to_try.extend([
-            # Introductory statement (pre-2015 format)
+            # New ECB path (redirected from old URLs for most years)
+            f"https://www.ecb.europa.eu/press/press_conference/monetary-policy-statement/{yyyy}/html/is{yy}{mm}{dd}.en.html",
+            # Introductory statement (pre-2015 format — redirects to new path)
             f"https://www.ecb.europa.eu/press/pressconf/{yyyy}/html/is{yy}{mm}{dd}.en.html",
             # Monetary policy decisions (pre-2015 format)
             f"https://www.ecb.europa.eu/press/pr/date/{yyyy}/html/pr{yy}{mm}{dd}.en.html",
             # Alt date format with full year
             f"https://www.ecb.europa.eu/press/pressconf/{yyyy}/html/is{yyyymmdd}.en.html",
+            # New path with ecb.is prefix
+            f"https://www.ecb.europa.eu/press/press_conference/monetary-policy-statement/{yyyy}/html/ecb.is{yyyymmdd}.en.html",
+            f"https://www.ecb.europa.eu/press/press_conference/monetary-policy-statement/{yyyy}/html/ecb.is{yy}{mm}{dd}.en.html",
             # Monetary policy decisions (newer format without hash)
             f"https://www.ecb.europa.eu/press/pr/date/{yyyy}/html/ecb.mp{yy}{mm}{dd}.en.html",
             # Combined statement format (post-2019 switch)
@@ -503,11 +516,8 @@ def run_nlp_pipeline(start_year=2008, end_year=2022):
                             break
                     else:
                         soup = BeautifulSoup(resp.text, "lxml")
-                        content = soup.find("article") or soup.find("div", class_="section") or soup.find("div", id="main-wrapper")
-                        if content:
-                            paras = content.find_all("p")
-                            text = "\n".join(p.get_text(strip=True) for p in paras)
-                            if len(text) > 100:
+                        text = _extract_ecb_text(soup)
+                        if len(text) > 100:
                                 fetched_texts.append((date, text))
                                 found_text = True
                                 break
