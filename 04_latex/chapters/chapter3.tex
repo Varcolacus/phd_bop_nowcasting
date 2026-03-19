@@ -13,7 +13,7 @@ This chapter bridges the gap between statistical accuracy and policy relevance. 
 \section{Introduction}
 \label{sec:ch3_intro}
 
-Chapters~1 and~2 established two empirical results: Ridge regression reduces BoP nowcast RMSE by~26\% relative to an autoregressive benchmark (Chapter~1), and incorporating alternative data---particularly text/sentiment indicators---provides an additional~6.5\% improvement (Chapter~2).  But do these accuracy gains matter?
+Chapters~1 and~2 established two empirical results: Ridge regression reduces BoP nowcast RMSE by~26\% relative to an autoregressive benchmark (Chapter~1), and incorporating alternative data---particularly text/sentiment indicators---provides an additional~7.7\% improvement (Chapter~2).  But do these accuracy gains matter?
 
 Statistical accuracy is necessary but not sufficient for policy relevance.  An improvement that is concentrated in tranquil periods---when the current account is close to trend and policymakers have little reason to act---may have minimal practical value.  Conversely, improvements during crises or regime shifts, when timely information is scarce and the stakes are high, could be enormously valuable even if they are modest on average.
 
@@ -197,11 +197,11 @@ $i_{t-1}$ ($\rho$)           &  0.983 & 0.019 & $<$0.001 \\
 \vspace{0.5em}
 
 \begin{minipage}{\textwidth}
-\footnotesize $R^2 = 0.993$; $N = 239$; Durbin--Watson = 0.60.  HAC standard errors \citep{newey1987simple}.
+\footnotesize $R^2 = 0.993$; $N = 239$; Durbin--Watson = 0.60.  Newey--West HAC standard errors with 12~lags \citep{newey1987simple}, robust to heteroskedasticity and residual autocorrelation.
 \end{minipage}
 \end{table}
 
-The inclusion of the lagged interest rate ($\hat{\rho} = 0.983$, $p < 0.001$) dramatically improves the model fit ($R^2$ rises from~0.19 to~0.99) and addresses the severe residual autocorrelation present in the standard Taylor rule (Durbin--Watson increases from~0.17 to~0.60).  The short-run CA gap coefficient ($\hat{\delta} = -0.008$) is small and statistically insignificant ($p = 0.370$).  However, the implied \emph{long-run} coefficient is $\hat{\delta}/(1-\hat{\rho}) = -0.008 / 0.017 = -0.46$, closely matching the naive OLS estimate.  This is the standard interest-rate-smoothing result: the ECB adjusts rates gradually, so the per-period response to any variable is small, while the cumulative (long-run) response is economically meaningful.
+The inclusion of the lagged interest rate ($\hat{\rho} = 0.983$, $p < 0.001$) dramatically improves the model fit ($R^2$ rises from~0.19 to~0.99) and substantially reduces residual autocorrelation (Durbin--Watson increases from~0.17 to~0.60).  The remaining serial correlation (DW~$< 2$) does not invalidate inference because all standard errors are computed using the \citet{newey1987simple} HAC estimator with 12~lags, which is consistent under both heteroskedasticity and autocorrelation of unknown form.  The short-run CA gap coefficient ($\hat{\delta} = -0.008$) is small and statistically insignificant ($p = 0.370$).  However, the implied \emph{long-run} coefficient is $\hat{\delta}/(1-\hat{\rho}) = -0.008 / 0.017 = -0.46$, closely matching the naive OLS estimate.  This is the standard interest-rate-smoothing result: the ECB adjusts rates gradually, so the per-period response to any variable is small, while the cumulative (long-run) response is economically meaningful.
 
 \subsection{Counterfactual Exercise}
 
@@ -260,6 +260,9 @@ The Taylor rule exercise (Part~C) quantifies one specific policy channel through
 
 \paragraph{Caveats.}
 Three caveats apply.  First, the Taylor rule is a reduced-form description of policy, not a structural model; we cannot claim that the ECB would literally adjust rates in response to BoP nowcasts.  Second, the counterfactual assumes that better real-time information would translate into different decisions, which depends on institutional constraints and decision-making processes.  Third, the short-run CA gap coefficient is statistically insignificant once interest-rate smoothing is included, meaning the policy-rate channel should be interpreted through the long-run lens.
+
+\paragraph{Limitations.}
+Two methodological limitations deserve explicit acknowledgement.  First, our expanding-window evaluation uses \emph{revised} (final-vintage) data rather than real-time data vintages.  Because macroeconomic series undergo substantial revisions---particularly trade and industrial production figures---our RMSE estimates may understate the true difficulty of real-time nowcasting.  A pseudo-real-time exercise using vintaged data from the OECD Real-Time Database or the BdF's own revision history would provide a stricter test; we leave this for future work.  Second, the sample period (2003--2022 for the Taylor rule, 2008--2022 for the ablation study) is relatively short by macroeconomic standards.  As noted in the MCS discussion (Chapters~1--2), this limits the power of formal comparison tests.  Both limitations are common to the BoP nowcasting literature, where quarterly data are intrinsically scarce and real-time vintage archives are not publicly available for external sector statistics.
 
 
 % ===================================================================

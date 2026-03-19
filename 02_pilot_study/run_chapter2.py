@@ -1,5 +1,5 @@
 """
-Chapter 2 — Ablation Study: Alternative Data for BoP Nowcasting
+Chapter 2 -- Ablation Study: Alternative Data for BoP Nowcasting
 =================================================================
 
 Structured ablation study comparing:
@@ -538,8 +538,8 @@ def main():
 
         ridge_str = f"{ridge_rmse:,.0f}" if ridge_rmse else "N/A"
         xgb_str = f"{xgb_rmse:,.0f}" if xgb_rmse else "N/A"
-        ridge_vs_str = f"{ridge_vs:+.1f}%" if ridge_vs is not None else "—"
-        xgb_vs_str = f"{xgb_vs:+.1f}%" if xgb_vs is not None else "—"
+        ridge_vs_str = f"{ridge_vs:+.1f}%" if ridge_vs is not None else "---"
+        xgb_vs_str = f"{xgb_vs:+.1f}%" if xgb_vs is not None else "---"
 
         print(f"  {spec_name:<6} {ridge_str:>12} {ridge_vs_str:>8} {xgb_str:>12} {xgb_vs_str:>8}")
 
@@ -682,7 +682,7 @@ def main():
     # Phase 7d: Model Confidence Set (Hansen, Lunde & Nason, 2011)
     # ---------------------------------------------------------------
     print("\n" + "=" * 70)
-    print("  MODEL CONFIDENCE SET (α = 0.10)")
+    print("  MODEL CONFIDENCE SET (alpha = 0.10)")
     print("=" * 70)
 
     # Build ForecastResult dict across all specs × models for MCS
@@ -783,7 +783,93 @@ def main():
         print("  [WARN] M0 or M5 Ridge errors not available")
 
     # ---------------------------------------------------------------
-    # Phase 7f: M5 Interaction Discussion
+    # Phase 7f: Rossi (2013) Out-of-Sample Stability Tests
+    # ---------------------------------------------------------------
+    print("\n" + "=" * 70)
+    print("  ROSSI (2013) OUT-OF-SAMPLE STABILITY TESTS")
+    print("=" * 70)
+
+    if key_m0_ridge in spec_errors and key_m5_ridge in spec_errors:
+        e_m0 = spec_errors[key_m0_ridge]
+        e_m5 = spec_errors[key_m5_ridge]
+        valid_mask = ~np.isnan(e_m0) & ~np.isnan(e_m5)
+
+        if valid_mask.sum() >= 30:
+            e0 = e_m0[valid_mask]
+            e5 = e_m5[valid_mask]
+            T_oos = len(e0)
+            d_t = e0 ** 2 - e5 ** 2  # loss differential
+
+            # --- (a) Sup-type test (Rossi 2013, §3.2) ---
+            # Supremum of absolute rolling DM statistic
+            w = max(20, T_oos // 4)
+            hw = w // 2
+            roll_dm = []
+            for t in range(hw, T_oos - hw):
+                d_w = d_t[t - hw:t + hw]
+                mu = d_w.mean()
+                sig = d_w.std(ddof=1)
+                roll_dm.append(mu / (sig / np.sqrt(len(d_w))) if sig > 0 else 0.0)
+            roll_dm = np.array(roll_dm)
+
+            sup_dm = np.max(np.abs(roll_dm))
+            # Bootstrap p-value for the sup statistic
+            rng = np.random.default_rng(42)
+            n_boot = 2000
+            sup_boot = np.empty(n_boot)
+            for b in range(n_boot):
+                idx = rng.choice(T_oos, size=T_oos, replace=True)
+                d_b = d_t[idx]
+                roll_b = []
+                for t in range(hw, T_oos - hw):
+                    d_w = d_b[t - hw:t + hw]
+                    mu = d_w.mean()
+                    sig = d_w.std(ddof=1)
+                    roll_b.append(mu / (sig / np.sqrt(len(d_w))) if sig > 0 else 0.0)
+                sup_boot[b] = np.max(np.abs(roll_b))
+            sup_p = np.mean(sup_boot >= sup_dm)
+
+            # --- (b) CUSUM test on loss differentials ---
+            cum_d = np.cumsum(d_t - d_t.mean())
+            std_d = d_t.std(ddof=1)
+            cusum_stat = np.max(np.abs(cum_d)) / (std_d * np.sqrt(T_oos))
+            # Kolmogorov-Smirnov 5% critical value ≈ 1.36
+            ks_cv = 1.36
+            cusum_reject = cusum_stat > ks_cv
+
+            print(f"  Loss differential: d_t = e^2(M0) - e^2(M5)")
+            print(f"  T_oos = {T_oos}, rolling window = {w}")
+            print(f"\n  (a) Sup-DM test:")
+            print(f"      sup|DM_t| = {sup_dm:.3f}")
+            print(f"      Bootstrap p-value = {sup_p:.3f} ({n_boot} replications)")
+            if sup_p < 0.05:
+                print("      -> Reject H0: relative accuracy is UNSTABLE over time")
+            else:
+                print("      -> Fail to reject H0: no evidence of instability")
+            print(f"\n  (b) CUSUM test:")
+            print(f"      CUSUM stat = {cusum_stat:.3f}  (KS 5% CV = {ks_cv})")
+            if cusum_reject:
+                print("      -> Reject H0: structural break in loss differential")
+            else:
+                print("      -> Fail to reject H0: stable loss differential")
+
+            pd.DataFrame([{
+                "sup_dm": sup_dm,
+                "sup_dm_p": sup_p,
+                "cusum_stat": cusum_stat,
+                "cusum_cv_5pct": ks_cv,
+                "cusum_reject": cusum_reject,
+                "T_oos": T_oos,
+                "window": w,
+            }]).to_csv(CH2_OUTPUT / "rossi_stability_tests.csv", index=False)
+            print(f"\n  Saved rossi_stability_tests.csv")
+        else:
+            print("  [WARN] Not enough observations for stability tests")
+    else:
+        print("  [WARN] M0 or M5 Ridge errors not available")
+
+    # ---------------------------------------------------------------
+    # Phase 7g: M5 Interaction Discussion
     # ---------------------------------------------------------------
     print("\n" + "=" * 70)
     print("  M5 INTERACTION ANALYSIS")
@@ -811,11 +897,11 @@ def main():
                 ratio = m5_gain / sum_marginal
                 print(f"  M5 / sum(marginals) ratio: {ratio:.2f}")
                 if ratio < 1:
-                    print("  → Sub-additive: combining categories yields diminishing returns")
+                    print("  -> Sub-additive: combining categories yields diminishing returns")
                 elif ratio > 1:
-                    print("  → Super-additive: categories complement each other")
+                    print("  -> Super-additive: categories complement each other")
                 else:
-                    print("  → Purely additive")
+                    print("  -> Purely additive")
 
             pd.DataFrame([{
                 "m5_gain": m5_gain,
@@ -853,7 +939,7 @@ def main():
                     })
                     print(f"    {spec_name} {mname}: RMSE = {rmse:,.0f}")
 
-    # (b) Crisis subsample evaluation — evaluate only on crisis periods
+    # (b) Crisis subsample evaluation -- evaluate only on crisis periods
     crisis_periods = {
         "GFC": ("2008-09-01", "2009-06-30"),
         "Euro_Crisis": ("2011-06-01", "2012-06-30"),
@@ -936,7 +1022,7 @@ def main():
     # Summary
     # ---------------------------------------------------------------
     print("\n" + "=" * 70)
-    print("  CHAPTER 2 ABLATION STUDY — COMPLETE")
+    print("  CHAPTER 2 ABLATION STUDY -- COMPLETE")
     print("=" * 70)
     n_real = sum(1 for v in alt_meta.values() if v == "real")
     n_synth = sum(1 for v in alt_meta.values() if v == "synthetic")
@@ -948,7 +1034,7 @@ def main():
         [(s, r.get("Ridge", ForecastResult("")).rmse)
          for s, r in all_results.items() if r.get("Ridge", ForecastResult("")).rmse],
         key=lambda x: x[1] if x[1] else float('inf'),
-        default=("—", None)
+        default=("---", None)
     )
     if best_spec[1]:
         print(f"  Best specification: {best_spec[0]} (Ridge RMSE = {best_spec[1]:,.0f})")

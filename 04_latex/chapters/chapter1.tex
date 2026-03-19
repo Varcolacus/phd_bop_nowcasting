@@ -258,7 +258,7 @@ Following the combination literature \citep{timmermann2006forecast}, we construc
 
 \subsection{Model Confidence Set}
 
-Applying the \citet{hansen2011model} Model Confidence Set (MCS) procedure at the~10\% significance level, all nine models survive---none is eliminated.  This result reflects the small evaluation sample ($T = 51$ quarters): the MCS procedure is conservative with limited data.  The MCS does, however, rank Ridge as the top model and LSTM/GRU at the bottom of the surviving set.
+Applying the \citet{hansen2011model} Model Confidence Set (MCS) procedure at the~10\% significance level, all nine models survive---none is eliminated.  This is a \emph{power} result, not an accuracy result: with only $T = 51$ quarterly evaluation observations, the bootstrap-based MCS has insufficient power to eliminate models whose true loss differentials are modest.  \citet{hansen2011model} themselves caution that the MCS ``requires a relatively large number of observations'' and suggest $T \geq 100$ for reliable elimination; our sample falls well below this threshold.  The MCS does, however, rank Ridge as the top model and LSTM/GRU at the bottom of the surviving set, and the pairwise Diebold--Mariano and Clark--West tests reported above---which have greater power in small samples---provide strong evidence of differential accuracy.
 
 
 % -------------------------------------------------------------------
