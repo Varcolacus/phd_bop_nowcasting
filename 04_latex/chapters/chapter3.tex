@@ -5,7 +5,7 @@
 \label{ch:policy}
 
 \begin{abstract}
-This chapter bridges the gap between statistical accuracy and policy relevance.  Three exercises assess whether the improved BoP nowcasts documented in Chapters~1--2 matter for macroeconomic policy.  \emph{Part~A} evaluates nowcast performance during three crisis episodes---GFC (2008--09), COVID-19 (2020--21), and the 2022 energy shock---finding that Ridge nowcasts maintained substantial accuracy gains (up to~26\% RMSE reduction during COVID) precisely when timely information was most valuable.  \emph{Part~B} tests cross-country generalisability: applying the Ridge framework to Germany, Italy, and Spain yields RMSE improvements of~16--20\% over AR(1), confirming that the approach is not France-specific.  \emph{Part~C} conducts a counterfactual policy analysis using a Taylor-type rule augmented with a BoP gap term: the estimated coefficient $\hat{\delta} = -0.481$ ($p = 0.003$) implies that more accurate real-time BoP estimates would have shifted implied policy rates by up to~159.7 basis points at peak crisis episodes.  Taken together, these results suggest that investing in AI-based BoP nowcasting would generate tangible policy value.
+This chapter bridges the gap between statistical accuracy and policy relevance.  Three exercises assess whether the improved BoP nowcasts documented in Chapters~1--2 matter for macroeconomic policy.  \emph{Part~A} evaluates nowcast performance during three crisis episodes---GFC (2008--09), COVID-19 (2020--21), and the 2022 energy shock---finding that Ridge nowcasts maintained substantial accuracy gains (up to~26\% RMSE reduction during COVID) precisely when timely information was most valuable.  \emph{Part~B} tests cross-country generalisability: applying the Ridge framework to Germany, Italy, and Spain yields RMSE improvements of~13--20\% over AR(1), confirming that the approach is not France-specific.  \emph{Part~C} conducts a counterfactual policy analysis using a Taylor-type rule augmented with a BoP gap term: the estimated coefficient $\hat{\delta} = -0.481$ ($p = 0.003$) implies that more accurate real-time BoP estimates would have shifted implied policy rates by up to~159.7 basis points at peak crisis episodes.  Taken together, these results suggest that investing in AI-based BoP nowcasting would generate tangible policy value.
 \end{abstract}
 
 
@@ -192,7 +192,14 @@ We compute the implied policy rate under two scenarios:
   \item \textbf{Nowcast:} Using Ridge nowcast (available approximately 1~month before the official release).
 \end{enumerate}
 
-The maximum gap between the two implied rates---i.e., the largest policy-relevant information difference---reaches \textbf{159.7 basis points} during peak crisis episodes.  This occurs during the COVID period, when the current account deteriorated rapidly and the Ridge nowcast captured the magnitude of the shift substantially earlier than the official data release.
+The maximum gap between the two implied rates---i.e., the largest policy-relevant information difference---reaches \textbf{159.7 basis points} during peak crisis episodes.  This occurs during the COVID period, when the current account deteriorated rapidly and the Ridge nowcast captured the magnitude of the shift substantially earlier than the official data release.  Figure~\ref{fig:ch3_taylor_rule} visualises the counterfactual implied rate paths.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.85\textwidth]{figures/ch3_taylor_rule}
+\caption{Counterfactual implied policy rates: official BoP data vs.\ Ridge nowcast.}
+\label{fig:ch3_taylor_rule}
+\end{figure}
 
 \subsection{Asymmetric Response Test}
 
@@ -223,7 +230,7 @@ The ML nowcast outperforms AR(1) by approximately~23\% (RMSE) and naive extrapol
 The crisis evaluation (Part~A) demonstrates that Ridge nowcasts are most valuable precisely when they are most needed: during rapid deteriorations in external balances that precede important policy decisions.  This ``crisis premium'' on forecast quality provides a strong argument for investing in AI-based monitoring systems.
 
 \paragraph{Scalability across the Euro area.}
-The cross-country results (Part~B) show that the Ridge approach is not France-specific but generalises robustly across the four largest Euro-area economies.  RMSE improvements of~16--20\% are achieved with essentially the same model specification and data sources, suggesting that a centralised ECB nowcasting system for Euro-area current accounts is feasible.
+The cross-country results (Part~B) show that the Ridge approach is not France-specific but generalises robustly across the four largest Euro-area economies.  RMSE improvements of~13--20\% are achieved with essentially the same model specification and data sources, suggesting that a centralised ECB nowcasting system for Euro-area current accounts is feasible.
 
 \paragraph{The policy rate channel.}
 The Taylor rule exercise (Part~C) quantifies one specific policy channel through which better BoP information matters.  The estimated CA gap coefficient ($\delta = -0.481$, $p = 0.003$) and the maximum implied rate differential (159.7~bp) suggest that real-time BoP information genuinely enters the policy function---either directly (through MIP surveillance) or indirectly (through its correlation with other variables that central banks monitor).

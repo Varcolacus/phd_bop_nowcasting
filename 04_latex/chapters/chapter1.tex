@@ -253,6 +253,24 @@ To assess whether nowcast accuracy varies with the volume of released indicators
 
 Ridge RMSE improves monotonically as more within-quarter information accumulates: early horizon~9{,}271, mid horizon~8{,}491, late horizon~6{,}567.  The~29\% RMSE reduction from early to late is consistent with the news interpretation of nowcasting \citep{giannone2008nowcasting} and confirms that the model exploits genuine information content rather than in-sample artefacts.
 
+\subsection{Feature Importance}
+
+To understand \emph{which} variables drive the Ridge nowcast, we compute SHAP values \citep{lundberg2017unified} across the evaluation sample.  Figure~\ref{fig:ch1_shap_importance} ranks predictors by mean absolute SHAP contribution; Figure~\ref{fig:ch1_shap_summary} shows the direction and magnitude of each feature's effect.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.85\textwidth]{figures/ch1_shap_importance}
+\caption{Mean absolute SHAP feature importance for the Ridge model.}
+\label{fig:ch1_shap_importance}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.85\textwidth]{figures/ch1_shap_summary}
+\caption{SHAP summary plot: each dot represents one observation; colour indicates feature value (red = high, blue = low).}
+\label{fig:ch1_shap_summary}
+\end{figure}
+
 
 % -------------------------------------------------------------------
 \section{Conclusion}
