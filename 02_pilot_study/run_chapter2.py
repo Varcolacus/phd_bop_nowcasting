@@ -41,6 +41,7 @@ from models import (
     diebold_mariano_test, block_bootstrap_rmse_ci, OUTPUT_DIR,
     HAS_TORCH, HAS_SHAP,
     StandardScaler,
+    model_confidence_set, clark_west_test, r2_oos, forecast_combination,
 )
 from alternative_data import (
     download_all_alternative_data,
@@ -676,6 +677,152 @@ def main():
                 CH2_OUTPUT / "bootstrap_ci_ablation.csv", index=False
             )
             print(f"\n  Saved bootstrap_ci_ablation.csv")
+
+    # ---------------------------------------------------------------
+    # Phase 7d: Model Confidence Set (Hansen, Lunde & Nason, 2011)
+    # ---------------------------------------------------------------
+    print("\n" + "=" * 70)
+    print("  MODEL CONFIDENCE SET (α = 0.10)")
+    print("=" * 70)
+
+    # Build ForecastResult dict across all specs × models for MCS
+    mcs_candidates = {}
+    for spec_name, models in all_results.items():
+        for mname, res in models.items():
+            if res.rmse is not None and len(res.predictions) > 0:
+                label = f"{spec_name}_{mname}"
+                mcs_candidates[label] = res
+
+    if len(mcs_candidates) >= 3:
+        try:
+            surviving, eliminated = model_confidence_set(
+                mcs_candidates, alpha=0.10, n_boot=1000, block_length=6, seed=42
+            )
+            print(f"  Superior set: {surviving}")
+            print(f"  Eliminated  : {eliminated}")
+            mcs_df = pd.DataFrame([{"model": m, "in_mcs": m in surviving}
+                                    for m in mcs_candidates.keys()])
+            mcs_df.to_csv(CH2_OUTPUT / "model_confidence_set.csv", index=False)
+            print(f"  Saved model_confidence_set.csv")
+        except Exception as e:
+            print(f"  [WARN] MCS failed: {e}")
+    else:
+        print("  [WARN] Not enough valid models for MCS")
+
+    # ---------------------------------------------------------------
+    # Phase 7e: Giacomini-Rossi (2010) Fluctuation Test
+    # ---------------------------------------------------------------
+    print("\n" + "=" * 70)
+    print("  GIACOMINI-ROSSI FLUCTUATION TEST (M5 Ridge vs M0 Ridge)")
+    print("=" * 70)
+
+    key_m0_ridge = ("M0", "Ridge")
+    key_m5_ridge = ("M5", "Ridge")
+    if key_m0_ridge in spec_errors and key_m5_ridge in spec_errors:
+        e_m0 = spec_errors[key_m0_ridge]
+        e_m5 = spec_errors[key_m5_ridge]
+        valid_gr = ~np.isnan(e_m0) & ~np.isnan(e_m5)
+
+        if valid_gr.sum() >= 30:
+            e0v = e_m0[valid_gr]
+            e5v = e_m5[valid_gr]
+            T = len(e0v)
+
+            # Rolling DM statistic with centered window
+            window_size = max(20, T // 4)
+            half_w = window_size // 2
+            rolling_dm = []
+            rolling_idx = []
+            from scipy import stats as _stats
+
+            for t in range(half_w, T - half_w):
+                d_t = e0v[t - half_w:t + half_w] ** 2 - e5v[t - half_w:t + half_w] ** 2
+                mean_d = d_t.mean()
+                var_d = d_t.var(ddof=1)
+                if var_d > 0:
+                    dm_t = mean_d / np.sqrt(var_d / len(d_t))
+                else:
+                    dm_t = 0.0
+                rolling_dm.append(dm_t)
+                rolling_idx.append(t)
+
+            rolling_dm = np.array(rolling_dm)
+            # Critical value for two-sided 5% (adjusted for sequential testing)
+            cv_5 = _stats.norm.ppf(0.975)
+
+            # Plot
+            import matplotlib
+            matplotlib.use("Agg")
+            import matplotlib.pyplot as plt
+
+            fig, ax = plt.subplots(figsize=(10, 4))
+            ax.plot(rolling_idx, rolling_dm, "b-", linewidth=1.2, label="Rolling DM statistic")
+            ax.axhline(cv_5, color="red", linestyle="--", linewidth=0.8, label=f"+{cv_5:.2f} (5% CV)")
+            ax.axhline(-cv_5, color="red", linestyle="--", linewidth=0.8, label=f"-{cv_5:.2f} (5% CV)")
+            ax.axhline(0, color="grey", linestyle=":", linewidth=0.5)
+            ax.set_xlabel("Evaluation period index")
+            ax.set_ylabel("DM statistic (M5 vs M0, Ridge)")
+            ax.set_title("Giacomini-Rossi Fluctuation Test: M5 vs M0 (Ridge)", fontweight="bold")
+            ax.legend(loc="best", fontsize=9)
+            plt.tight_layout()
+            fig.savefig(CH2_OUTPUT / "giacomini_rossi_fluctuation.png", dpi=150, bbox_inches="tight")
+            plt.close()
+            print(f"  Window size: {window_size} months, T={T}")
+            print(f"  Saved giacomini_rossi_fluctuation.png")
+
+            # Summary statistic: fraction of time M5 is significantly better
+            frac_sig = np.mean(rolling_dm > cv_5)
+            print(f"  Fraction where M5 sig. better: {frac_sig:.1%}")
+
+            pd.DataFrame({"index": rolling_idx, "rolling_dm": rolling_dm}).to_csv(
+                CH2_OUTPUT / "giacomini_rossi_data.csv", index=False
+            )
+        else:
+            print("  [WARN] Not enough observations for GR test")
+    else:
+        print("  [WARN] M0 or M5 Ridge errors not available")
+
+    # ---------------------------------------------------------------
+    # Phase 7f: M5 Interaction Discussion
+    # ---------------------------------------------------------------
+    print("\n" + "=" * 70)
+    print("  M5 INTERACTION ANALYSIS")
+    print("=" * 70)
+
+    if "M5" in all_results and "M0" in all_results:
+        m5_ridge = all_results["M5"].get("Ridge", ForecastResult(""))
+        sum_parts_rmse = 0
+        n_parts = 0
+        for spec in ["M1", "M2", "M3", "M4"]:
+            if spec in all_results:
+                sr = all_results[spec].get("Ridge", ForecastResult(""))
+                if sr.rmse and m0_ridge_rmse:
+                    sum_parts_rmse += (sr.rmse - m0_ridge_rmse)
+                    n_parts += 1
+
+        if m5_ridge.rmse and m0_ridge_rmse and n_parts > 0:
+            m5_gain = m5_ridge.rmse - m0_ridge_rmse
+            sum_marginal = sum_parts_rmse
+            interaction = m5_gain - sum_marginal
+            print(f"  M5 total gain vs M0:       {m5_gain:+,.0f}")
+            print(f"  Sum of marginal gains:     {sum_marginal:+,.0f}")
+            print(f"  Interaction effect:        {interaction:+,.0f}")
+            if sum_marginal != 0:
+                ratio = m5_gain / sum_marginal
+                print(f"  M5 / sum(marginals) ratio: {ratio:.2f}")
+                if ratio < 1:
+                    print("  → Sub-additive: combining categories yields diminishing returns")
+                elif ratio > 1:
+                    print("  → Super-additive: categories complement each other")
+                else:
+                    print("  → Purely additive")
+
+            pd.DataFrame([{
+                "m5_gain": m5_gain,
+                "sum_marginal_gains": sum_marginal,
+                "interaction": interaction,
+            }]).to_csv(CH2_OUTPUT / "m5_interaction.csv", index=False)
+            print(f"  Saved m5_interaction.csv")
 
     # ---------------------------------------------------------------
     # Phase 7c: Robustness checks

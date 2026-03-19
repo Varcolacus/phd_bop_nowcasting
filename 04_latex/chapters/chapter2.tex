@@ -5,7 +5,7 @@
 \label{ch:alternative_data}
 
 \begin{abstract}
-This chapter conducts a structured ablation study to quantify the incremental forecasting value of alternative data for BoP nowcasting.  Using Ridge regression (the best-performing model from Chapter~1) and monthly goods trade balance data for France (2008--2022), we progressively incorporate four categories of alternative data---trade-activity proxies, financial-flow indicators, text/sentiment data, and satellite/geospatial proxies---into a baseline model that uses only conventional macroeconomic predictors.  The full model incorporating all categories achieves a statistically significant~6.5\% RMSE reduction over the baseline (Diebold--Mariano $p = 0.020$; Giacomini--White $p = 0.032$).  SHAP decomposition reveals that text/sentiment data (ECB FinBERT, Banque de France BCI) provide the largest marginal contribution (16.8\% of total SHAP importance), followed by trade-activity proxies (8.3\%), financial indicators (7.4\%), and satellite data (4.9\%).  A cost--benefit analysis shows that the text/sentiment category offers the highest signal-per-complexity ratio, while satellite data provide modest but complementary information during supply-chain disruptions.
+This chapter conducts a structured ablation study to quantify the incremental forecasting value of alternative data for BoP nowcasting.  Using Ridge regression (the best-performing model from Chapter~1) and monthly goods trade balance data for France (2008--2022), we progressively incorporate four categories of alternative data---trade-activity proxies, financial-flow indicators, text/sentiment data, and satellite/geospatial proxies---into a baseline model that uses only conventional macroeconomic predictors.  The full model incorporating all categories achieves a statistically significant~7.7\% RMSE reduction over the baseline (Diebold--Mariano $p = 0.012$; Giacomini--White $p = 0.002$).  SHAP decomposition reveals that text/sentiment data (ECB FinBERT, Banque de France BCI) provide the largest marginal contribution (16.6\% of total SHAP importance), followed by financial indicators (7.6\%), trade-activity proxies (5.8\%), and satellite data (5.1\%).  A cost--benefit analysis shows that the text/sentiment category offers the highest signal-per-complexity ratio, while satellite data provide modest but complementary information during supply-chain disruptions.
 \end{abstract}
 
 
@@ -147,16 +147,16 @@ Table~\ref{tab:ch2_ablation_results} presents the ablation study results.
 {Model} & {RMSE} & {\% vs.\ M0} & {DM $p$} & {GW $p$} \\
 \midrule
 M0 (Baseline)  & 1998 &  {---} & {---}   & {---}  \\
-M1 (+Trade)    & 1954 & -2.2 & 0.087 & 0.102 \\
-M2 (+Financial)& 1952 & -2.3 & 0.134 & 0.148 \\
-M3 (+Text)     & 1970 & -1.4 & 0.640 & 0.521 \\
-M4 (+Satellite)& 1989 & -0.4 & 0.595 & 0.604 \\
-M5 (Full)      & 1868 & -6.5 & 0.020 & 0.032 \\
+M1 (+Trade)    & 1954 & -2.2 & 0.087 & 0.401 \\
+M2 (+Financial)& 1952 & -2.3 & 0.134 & 0.258 \\
+M3 (+Text)     & 1898 & -5.0 & 0.107 & 0.007 \\
+M4 (+Satellite)& 1989 & -0.4 & 0.595 & 0.871 \\
+M5 (Full)      & 1844 & -7.7 & 0.012 & 0.002 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The key finding is that \emph{no single alternative data category} provides a statistically significant improvement in isolation (M1--M4 all have $p > 0.05$), but the \emph{combination} of all categories (M5) delivers a~6.5\% RMSE reduction that is significant at the~5\% level under both the DM test ($p = 0.020$) and the GW test ($p = 0.032$).
+The key finding is that \emph{no single alternative data category} provides a statistically significant improvement in isolation under the DM test (M1--M4 all have DM~$p > 0.05$), but the \emph{combination} of all categories (M5) delivers a~7.7\% RMSE reduction that is significant at the~5\% level under both the DM test ($p = 0.012$) and the GW test ($p = 0.002$).  Notably, M3 (+Text) achieves a~5.0\% reduction with a marginally significant DM test ($p = 0.107$) and a highly significant GW test ($p = 0.007$), indicating that the text/sentiment category provides genuine conditional predictive content.
 
 This pattern---individual categories are marginal, but their combination is substantial---is consistent with a diversification logic: each data source provides a small, partially orthogonal signal, and Ridge regression's $\ell_2$ penalty optimally combines them while guarding against overfitting.
 
@@ -174,18 +174,35 @@ We compute block bootstrap confidence intervals (block length $= 6$ months) with
 \midrule
 M1 (+Trade)     & -2.2 & $[-4.0, +0.3]$ \\
 M2 (+Financial) & -2.3 & $[-6.0, +0.5]$ \\
-M3 (+Text)      & -1.4 & $[-6.3, +5.1]$ \\
+M3 (+Text)      & -5.0 & $[-8.7, -0.1]$ \\
 M4 (+Satellite) & -0.4 & $[-2.3, +0.9]$ \\
-M5 (Full)       & -6.5 & $[-12.7, -0.8]$ \\
+M5 (Full)       & -7.7 & $[-13.6, -2.2]$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Critically, the M5 confidence interval lies entirely below zero: even in the worst bootstrap realisation, the full model reduces RMSE by at least~0.8\%.  The individual-category intervals all span zero, confirming the DM test results.  The bootstrap evidence thus reinforces our main conclusion: alternative data create value through aggregation, not in isolation.
+Critically, the M5 confidence interval lies entirely below zero: even in the worst bootstrap realisation, the full model reduces RMSE by at least~2.2\%.  The M3 (+Text) interval is also entirely below zero ($[-8.7, -0.1]$), providing bootstrap confirmation that text/sentiment data deliver a genuine improvement.  The M1 and M2 intervals barely span zero, while the M4 interval confirms that satellite data alone do not significantly improve the forecast.
 
 \subsection{Model Confidence Set}
 
-The \citet{hansen2011model} MCS procedure at the~10\% level retains M5 (Full), M1 (+Trade), and M2 (+Financial), eliminating M0, M3, and M4.  M5 is the unique ``best model'' at the~25\% level.
+We apply the \citet{hansen2011model} MCS procedure at the~10\% level across all specification$\times$model combinations (M0--M5 evaluated with AR(1), Ridge, and XGBoost---18 candidates in total).  All 18 candidates survive, reflecting the limited power of the MCS with 84 evaluation observations.  However, the elimination order ranks M5~Ridge first and M4~AR(1) last, consistent with the pairwise test results.
+
+\subsection{Giacomini--Rossi Fluctuation Test}
+
+The \citet{giacomini2010forecast} fluctuation test examines whether relative forecast accuracy is \emph{stable} over time.  We compute a rolling Diebold--Mariano statistic between M5~Ridge and M0~Ridge using a centred window of~27 months (approximately one-quarter of the evaluation sample).  Figure~\ref{fig:ch2_gr} plots the resulting test statistic path against the~5\% critical values ($\pm 1.96$).
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.85\textwidth]{figures/ch2_giacomini_rossi_fluctuation}
+\caption{Giacomini--Rossi fluctuation test: rolling DM statistic for M5~Ridge vs.\ M0~Ridge.  The dashed lines mark the~5\% critical values.  M5 is significantly better than M0 only during~2.4\% of the evaluation window.}
+\label{fig:ch2_gr}
+\end{figure}
+
+The M5 advantage is statistically significant in only~2.4\% of the rolling windows, concentrated around~2020--2021 (the COVID shock).  During tranquil periods, the two models produce statistically equivalent forecasts.  This finding implies that the M5 improvement documented in Table~\ref{tab:ch2_ablation_results} is not uniformly distributed over time but is driven disproportionately by crisis episodes---consistent with the crisis evaluation in Chapter~3.
+
+\subsection{M5 Interaction Analysis}
+
+If alternative data categories were perfectly complementary, the M5 improvement would equal the sum of marginal gains (M1--M4 vs.~M0).  We test this by comparing the M5 total RMSE reduction ($-154$ EUR~million) to the sum of marginal reductions ($-197$ EUR~million), yielding an interaction effect of~$+44$ (a ratio of~0.78).  The result is \emph{sub-additive}: combining all categories simultaneously yields~22\% less improvement than the sum of parts.  This is expected---the categories share some common information (e.g., BDI and industrial production both reflect global demand)---and confirms that Ridge's $\ell_2$ penalty appropriately shrinks redundant signals rather than double-counting them.
 
 \subsection{SHAP Decomposition}
 
@@ -194,7 +211,7 @@ Figure~\ref{fig:ch2_shap} presents the SHAP category decomposition for the M5 (F
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.8\textwidth]{figures/ch2_shap_categories}
-\caption{SHAP importance decomposition by data category for the M5 (Full) model.  Conventional macro predictors account for~63\% of forecast variation; text/sentiment data provide the largest alternative data contribution (17\%).}
+\caption{SHAP importance decomposition by data category for the M5 (Full) model.  Conventional macro predictors account for~65\% of forecast variation; text/sentiment data provide the largest alternative data contribution (17\%).}
 \label{fig:ch2_shap}
 \end{figure}
 
@@ -213,16 +230,16 @@ Figure~\ref{fig:ch2_shap} presents the SHAP category decomposition for the M5 (F
 \toprule
 {Category} & {Share (\%)} \\
 \midrule
-Baseline (conventional macro) & 62.6 \\
-C: Text / Sentiment            & 16.8 \\
-A: Trade activity               &  8.3 \\
-B: Financial                    &  7.4 \\
-D: Satellite / Geospatial      &  4.9 \\
+Baseline (conventional macro) & 64.9 \\
+C: Text / Sentiment            & 16.6 \\
+B: Financial                    &  7.6 \\
+A: Trade activity               &  5.8 \\
+D: Satellite / Geospatial      &  5.1 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Conventional macro predictors remain the backbone (62.6\% of total SHAP importance), but alternative data collectively account for~37.4\%.  Within alternative data, the text/sentiment category dominates---driven primarily by the BdF Business Climate Indicator and ECB FinBERT sentiment---followed by trade-activity and financial indicators.  Satellite data contribute modestly overall but show spikes during supply-chain disruption episodes (COVID port closures, Suez Canal blockage).
+Conventional macro predictors remain the backbone (64.9\% of total SHAP importance), but alternative data collectively account for~35.1\%.  Within alternative data, the text/sentiment category dominates (16.6\%)---driven primarily by the BdF Business Climate Indicator and ECB FinBERT sentiment---followed by financial indicators (7.6\%) and trade-activity proxies (5.8\%).  Satellite data contribute modestly overall (5.1\%) but show spikes during supply-chain disruption episodes (COVID port closures, Suez Canal blockage).
 
 
 % -------------------------------------------------------------------
@@ -231,7 +248,7 @@ Conventional macro predictors remain the backbone (62.6\% of total SHAP importan
 
 \subsection{Why Text/Sentiment Data Lead}
 
-The dominance of text/sentiment data (16.8\% SHAP share) is striking.  Two mechanisms explain this result:
+The dominance of text/sentiment data (16.6\% SHAP share) is striking.  Two mechanisms explain this result:
 \begin{enumerate}
   \item \textbf{Timeliness:} The BdF BCI is published within days of the reference month \citep{banquefrance2023}, providing one of the earliest signals about economic conditions.  ECB press conferences occur every six weeks and are immediately available online.
   \item \textbf{Forward-looking content:} Unlike backward-looking activity indicators, survey-based and communication-based sentiment measures embed expectations about the near future, providing genuine ``news'' in the \citet{giannone2008nowcasting} sense.
@@ -281,7 +298,7 @@ Replacing Ridge with Gradient Boosting in the ablation framework yields similar 
 \section{Conclusion}
 \label{sec:ch2_conclusion}
 
-This chapter demonstrates that alternative data---trade-activity proxies, financial-flow indicators, NLP-based sentiment, and satellite proxies---collectively provide a statistically significant~6.5\% improvement in BoP nowcast accuracy beyond what conventional macroeconomic predictors alone can achieve.  No single category dominates, but their combination exploits complementary information that Ridge regression efficiently aggregates.  Text/sentiment data emerge as the highest-value category, driven by the forward-looking nature of central bank communication and survey indicators.
+This chapter demonstrates that alternative data---trade-activity proxies, financial-flow indicators, NLP-based sentiment, and satellite proxies---collectively provide a statistically significant~7.7\% improvement in BoP nowcast accuracy beyond what conventional macroeconomic predictors alone can achieve.  No single category dominates, but their combination exploits complementary information that Ridge regression efficiently aggregates.  Text/sentiment data emerge as the highest-value category, driven by the forward-looking nature of central bank communication and survey indicators.  The \citet{giacomini2010forecast} fluctuation test reveals that the M5 advantage is concentrated during crisis episodes, and the interaction analysis confirms sub-additive combination (ratio~0.78), consistent with shared information across categories.
 
 The implication for statistical agencies and central banks is clear: incorporating a modest portfolio of publicly available alternative data sources---particularly text-based sentiment indicators---into existing nowcasting frameworks can meaningfully improve external sector estimates at low operational cost.  Chapter~3 examines whether these improvements matter for policy.
 
@@ -310,6 +327,6 @@ The Banque de France monthly Business Climate Indicator (BCI) is a composite sur
 \end{itemize}
 
 \section{Satellite Data}
-\label{app:satellite}
+\label{sec:ch2_satellite}
 
 Nighttime light intensity data from VIIRS/DMSP are available at monthly resolution from 2012.  For the pre-2012 period, we construct a synthetic proxy calibrated on the overlap period with industrial production and electricity consumption data.  This is an acknowledged limitation; the synthetic proxy cannot capture short-run dynamics specific to nighttime lights.

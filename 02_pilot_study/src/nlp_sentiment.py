@@ -338,7 +338,12 @@ def run_nlp_pipeline(start_year=2008, end_year=2022):
     # --- First, try to scrape the ECB press conference archive pages ---
     # to discover actual URLs including hashes for post-2015 documents
     discovered_urls = {}
+    consecutive_failures = 0
+    MAX_CONSECUTIVE_FAILURES = 8  # Give up on archive scraping after 8 failures
     for yr in range(start_year, end_year + 1):
+        if consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
+            print(f"    [INFO] Archive scraping aborted after {MAX_CONSECUTIVE_FAILURES} consecutive failures")
+            break
         for section in ["pressconf", "pr/date"]:
             try:
                 if section == "pressconf":
@@ -351,9 +356,10 @@ def run_nlp_pipeline(start_year=2008, end_year=2022):
                         f"https://www.ecb.europa.eu/press/pr/date/{yr}"
                         "/html/index.en.html"
                     )
-                resp = requests.get(archive_url, timeout=15, verify=False,
+                resp = requests.get(archive_url, timeout=8, verify=False,
                                     headers={"User-Agent": "Mozilla/5.0"})
                 if resp.status_code == 200:
+                    consecutive_failures = 0
                     soup = BeautifulSoup(resp.text, "lxml")
                     links = soup.find_all("a", href=True)
                     for link in links:
@@ -375,7 +381,7 @@ def run_nlp_pipeline(start_year=2008, end_year=2022):
                                         full_url = href if href.startswith("http") else f"https://www.ecb.europa.eu{href}"
                                         discovered_urls[date_str] = full_url
             except Exception:
-                pass
+                consecutive_failures += 1
 
     if discovered_urls:
         print(f"    Discovered {len(discovered_urls)} URLs from ECB archive pages")
@@ -400,7 +406,11 @@ def run_nlp_pipeline(start_year=2008, end_year=2022):
     except Exception:
         pass
 
+    consecutive_url_failures = 0
     for date, date_str in statement_dates:
+        if consecutive_url_failures >= 15:
+            print(f"    [INFO] Aborting text fetch after {consecutive_url_failures} consecutive failures")
+            break
         yy = f"{date.year % 100:02d}"
         mm = f"{date.month:02d}"
         dd = f"{date.day:02d}"
@@ -431,9 +441,10 @@ def run_nlp_pipeline(start_year=2008, end_year=2022):
             f"https://www.ecb.europa.eu/press/pressconf/{yyyy}/html/ecb.is{yy}{mm}{dd}.en.html",
         ])
 
+        found_text = False
         for url in urls_to_try:
             try:
-                resp = requests.get(url, timeout=15, verify=False,
+                resp = requests.get(url, timeout=8, verify=False,
                                     headers={"User-Agent": "Mozilla/5.0"})
                 if resp.status_code == 200 and len(resp.content) > 500:
                     # Handle PDF documents
@@ -441,6 +452,7 @@ def run_nlp_pipeline(start_year=2008, end_year=2022):
                         text = _extract_text_from_pdf(resp.content)
                         if text and len(text) > 100:
                             fetched_texts.append((date, text))
+                            found_text = True
                             break
                     else:
                         soup = BeautifulSoup(resp.text, "lxml")
@@ -450,9 +462,15 @@ def run_nlp_pipeline(start_year=2008, end_year=2022):
                             text = "\n".join(p.get_text(strip=True) for p in paras)
                             if len(text) > 100:
                                 fetched_texts.append((date, text))
+                                found_text = True
                                 break
             except Exception:
                 continue
+
+        if found_text:
+            consecutive_url_failures = 0
+        else:
+            consecutive_url_failures += 1
 
     print(f"    Fetched {len(fetched_texts)} / {len(statement_dates)} press releases")
 

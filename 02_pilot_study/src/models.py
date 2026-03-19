@@ -702,6 +702,248 @@ def block_bootstrap_rmse_ci(models, benchmark="AR(1)", n_boot=1000,
 
 
 # ---------------------------------------------------------------------------
+# Clark-West (2007) Test for Nested Models
+# ---------------------------------------------------------------------------
+
+def clark_west_test(e1, e2, y_actual, y_pred_restricted):
+    """
+    Clark & West (2007) test for comparing nested forecasting models.
+
+    Adjusts the MSPE comparison for the noise in the larger model's
+    parameter estimates under the null that the restrictions are true.
+
+    Parameters:
+        e1: forecast errors from the unrestricted (larger) model
+        e2: forecast errors from the restricted (smaller/benchmark) model
+        y_actual: actual values
+        y_pred_restricted: predictions from the restricted model
+
+    Returns:
+        CW test statistic, p-value (one-sided)
+    """
+    from scipy import stats
+
+    n = len(e1)
+    if n < 10:
+        return np.nan, np.nan
+
+    # CW adjustment term
+    adj = (y_actual - y_pred_restricted) ** 2 - (e1 ** 2 - (e2 - e1) ** 2)
+    # Simplified: f_t = e2^2 - [e1^2 - (e2 - e1)^2]
+    f_t = e2 ** 2 - e1 ** 2 + (e2 - e1) ** 2
+
+    f_mean = np.mean(f_t)
+    f_var = np.var(f_t, ddof=1) / n
+
+    if f_var <= 0:
+        return np.nan, np.nan
+
+    cw_stat = f_mean / np.sqrt(f_var)
+    p_value = 1 - stats.norm.cdf(cw_stat)  # one-sided
+
+    return cw_stat, p_value
+
+
+# ---------------------------------------------------------------------------
+# R² Out-of-Sample (Campbell & Thompson, 2008)
+# ---------------------------------------------------------------------------
+
+def r2_oos(actuals, predictions, benchmark_predictions):
+    """
+    Out-of-sample R² relative to a benchmark (Campbell & Thompson 2008).
+
+    R²_OOS = 1 - Σ(y - ŷ_model)² / Σ(y - ŷ_bench)²
+
+    Positive values mean the model beats the benchmark.
+    """
+    a = np.array(actuals, dtype=float)
+    p = np.array(predictions, dtype=float)
+    b = np.array(benchmark_predictions, dtype=float)
+
+    valid = ~np.isnan(a) & ~np.isnan(p) & ~np.isnan(b)
+    if valid.sum() < 2:
+        return np.nan
+
+    sse_model = np.sum((a[valid] - p[valid]) ** 2)
+    sse_bench = np.sum((a[valid] - b[valid]) ** 2)
+
+    if sse_bench == 0:
+        return np.nan
+
+    return 1 - sse_model / sse_bench
+
+
+# ---------------------------------------------------------------------------
+# Forecast Combination
+# ---------------------------------------------------------------------------
+
+def forecast_combination(models, method="inverse_rmse", exclude=None):
+    """
+    Combine forecasts from multiple models.
+
+    Parameters:
+        models: dict of ForecastResult objects
+        method: 'equal' or 'inverse_rmse'
+        exclude: list of model names to exclude (e.g., benchmark)
+
+    Returns:
+        ForecastResult with combined predictions
+    """
+    if exclude is None:
+        exclude = []
+
+    eligible = {k: v for k, v in models.items()
+                if k not in exclude and v.rmse is not None and len(v.predictions) > 0}
+
+    if not eligible:
+        return ForecastResult("Combination")
+
+    # Align predictions by index (all should have same length from expanding window)
+    n = min(len(v.predictions) for v in eligible.values())
+    names = list(eligible.keys())
+
+    if method == "equal":
+        weights = {k: 1.0 / len(names) for k in names}
+    elif method == "inverse_rmse":
+        inv_rmse = {k: 1.0 / v.rmse for k, v in eligible.items()}
+        total = sum(inv_rmse.values())
+        weights = {k: v / total for k, v in inv_rmse.items()}
+    else:
+        weights = {k: 1.0 / len(names) for k in names}
+
+    combo = ForecastResult("Combination")
+    for i in range(n):
+        pred = sum(weights[k] * float(eligible[k].predictions[i]) for k in names
+                   if not np.isnan(float(eligible[k].predictions[i])))
+        combo.predictions.append(pred)
+        combo.actuals.append(eligible[names[0]].actuals[i])
+        combo.dates.append(eligible[names[0]].dates[i])
+
+    preds = np.array(combo.predictions, dtype=float)
+    acts = np.array(combo.actuals, dtype=float)
+    valid = ~np.isnan(preds) & ~np.isnan(acts)
+    if valid.sum() >= 2:
+        combo.rmse = np.sqrt(mean_squared_error(acts[valid], preds[valid]))
+        combo.mae = mean_absolute_error(acts[valid], preds[valid])
+        if valid.sum() > 1:
+            actual_dir = np.diff(acts[valid]) > 0
+            pred_dir = np.diff(preds[valid]) > 0
+            combo.direction_accuracy = np.mean(actual_dir == pred_dir) * 100
+
+    return combo
+
+
+# ---------------------------------------------------------------------------
+# Model Confidence Set (Hansen, Lunde & Nason, 2011)
+# ---------------------------------------------------------------------------
+
+def model_confidence_set(models, alpha=0.10, n_boot=1000, block_length=4, seed=42):
+    """
+    Model Confidence Set (Hansen, Lunde & Nason 2011).
+
+    Iteratively eliminates the worst model until the null of equal
+    predictive ability cannot be rejected at level alpha.
+
+    Returns:
+        list of model names in the superior set, list of eliminated models
+    """
+    rng = np.random.RandomState(seed)
+
+    eligible = {k: v for k, v in models.items()
+                if v.rmse is not None and len(v.predictions) > 0}
+    if len(eligible) < 2:
+        return list(eligible.keys()), []
+
+    # Align all predictions
+    n = min(len(v.predictions) for v in eligible.values())
+    names = list(eligible.keys())
+
+    # Build loss matrix (squared errors)
+    losses = {}
+    for k, v in eligible.items():
+        preds = np.array(v.predictions[:n], dtype=float)
+        acts = np.array(v.actuals[:n], dtype=float)
+        losses[k] = (acts - preds) ** 2
+
+    eliminated = []
+    surviving = list(names)
+
+    while len(surviving) > 1:
+        m = len(surviving)
+        # Pairwise loss differentials
+        d_bar = np.zeros((m, m))
+        d_series = {}
+        for i in range(m):
+            for j in range(i + 1, m):
+                d_ij = losses[surviving[i]] - losses[surviving[j]]
+                valid = ~np.isnan(d_ij)
+                if valid.sum() < 10:
+                    continue
+                d_clean = d_ij[valid]
+                d_bar[i, j] = np.mean(d_clean)
+                d_bar[j, i] = -d_bar[i, j]
+                d_series[(i, j)] = d_clean
+
+        # T_R statistic: max of standardized pairwise means
+        t_stats = []
+        for i in range(m):
+            for j in range(i + 1, m):
+                if (i, j) not in d_series:
+                    continue
+                d_clean = d_series[(i, j)]
+                se = np.std(d_clean, ddof=1) / np.sqrt(len(d_clean))
+                if se > 1e-10:
+                    t_stats.append(abs(np.mean(d_clean)) / se)
+
+        if not t_stats:
+            break
+
+        T_R = max(t_stats)
+
+        # Bootstrap distribution of T_R under the null
+        n_valid = min(len(d) for d in d_series.values()) if d_series else n
+        n_blocks = int(np.ceil(n_valid / block_length))
+        boot_T = []
+
+        for _ in range(n_boot):
+            starts = rng.randint(0, max(1, n_valid - block_length + 1), size=n_blocks)
+            idx = np.concatenate([np.arange(s, min(s + block_length, n_valid))
+                                  for s in starts])[:n_valid]
+
+            boot_t_stats = []
+            for i in range(m):
+                for j in range(i + 1, m):
+                    if (i, j) not in d_series:
+                        continue
+                    d_clean = d_series[(i, j)]
+                    d_boot = d_clean[idx[:len(d_clean)]] if len(idx) >= len(d_clean) else d_clean
+                    d_centered = d_boot - np.mean(d_clean)  # center under null
+                    se = np.std(d_centered, ddof=1) / np.sqrt(len(d_centered))
+                    if se > 1e-10:
+                        boot_t_stats.append(abs(np.mean(d_centered)) / se)
+
+            if boot_t_stats:
+                boot_T.append(max(boot_t_stats))
+
+        if not boot_T:
+            break
+
+        p_value = np.mean(np.array(boot_T) >= T_R)
+
+        if p_value < alpha:
+            # Reject null: eliminate worst model (highest mean loss)
+            mean_losses = {surviving[i]: np.nanmean(losses[surviving[i]])
+                           for i in range(m)}
+            worst = max(mean_losses, key=mean_losses.get)
+            eliminated.append(worst)
+            surviving.remove(worst)
+        else:
+            break
+
+    return surviving, eliminated
+
+
+# ---------------------------------------------------------------------------
 # Results Summary
 # ---------------------------------------------------------------------------
 

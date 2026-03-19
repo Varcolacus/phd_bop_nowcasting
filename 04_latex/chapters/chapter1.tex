@@ -5,7 +5,7 @@
 \label{ch:model_comparison}
 
 \begin{abstract}
-This chapter conducts a systematic comparison of econometric and machine-learning approaches for nowcasting France's quarterly current account balance.  Nine models---AR(1), AR(4), Dynamic Factor Model, Bridge equation, Ridge regression, Gradient Boosting, XGBoost, LSTM, and GRU---are evaluated on both quarterly current account and monthly goods trade data over 2003--2022 using an expanding-window protocol with a minimum training sample of 40~quarters (10~years).  Ridge regression delivers the largest and most robust improvement: a~26.3\% RMSE reduction over AR(1) at the quarterly frequency, significant at the~5\% level via the \citet{diebold1995comparing} test ($p = 0.002$).  Traditional econometric approaches (DFM, Bridge) offer moderate but less consistent gains.  Complex nonlinear methods---Gradient Boosting, XGBoost---improve on the benchmark but are outperformed by Ridge.  Both LSTM (${+}1.0$\% RMSE) and GRU (${+}0.9$\%) fail entirely, confirming that deep learning---regardless of recurrent architecture---is ill-suited to the small-sample macroeconomic setting.  These results corroborate \citet{gouletcoulombe2022how}'s finding that regularised linear models dominate in low-dimensional macroeconomic forecasting.
+This chapter conducts a systematic comparison of econometric and machine-learning approaches for nowcasting France's quarterly current account balance.  Nine models---AR(1), AR(4), Dynamic Factor Model, Bridge equation, Ridge regression, Gradient Boosting, XGBoost, LSTM, and GRU---are evaluated on both quarterly current account and monthly goods trade data over 2003--2022 using an expanding-window protocol with a minimum training sample of 40~quarters (10~years).  Ridge regression delivers the largest and most robust improvement: a~26.3\% RMSE reduction over AR(1) at the quarterly frequency, significant at the~1\% level via both the \citet{diebold1995comparing} test ($p = 0.002$) and the \citet{clark2007approximately} nested-model test ($p < 0.001$), with an out-of-sample~$R^2$ of~0.46.  Traditional econometric approaches (DFM, Bridge) offer moderate but less consistent gains.  Complex nonlinear methods---Gradient Boosting, XGBoost---improve on the benchmark but are outperformed by Ridge.  Both LSTM (${+}1.0$\% RMSE) and GRU (${+}0.9$\%) fail entirely, confirming that deep learning---regardless of recurrent architecture---is ill-suited to the small-sample macroeconomic setting.  These results corroborate \citet{gouletcoulombe2022how}'s finding that regularised linear models dominate in low-dimensional macroeconomic forecasting.
 \end{abstract}
 
 
@@ -225,6 +225,40 @@ Figure~\ref{fig:ch1_errors} shows the distribution of forecast errors across mod
 \end{figure}
 
 The Ridge improvement is tightly estimated: even in the worst-case bootstrap draw, Ridge reduces RMSE by at least~16.4\%.  The DFM interval is entirely below zero ($[-15.1, -1.0]$), suggesting a genuine, if modest, improvement.  The Bridge interval spans zero ($[-39.5, +14.0]$), reflecting its higher variability across subsamples.  Both LSTM and GRU intervals straddle zero, confirming that recurrent networks cannot be distinguished from the benchmark in this setting.
+
+\subsection{Clark--West Nested-Model Tests}
+
+The \citet{diebold1995comparing} test may be undersized when comparing nested models \citep{clark2007approximately}.  Table~\ref{tab:ch1_clarkwest} reports the \citet{clark2007approximately} (CW) test statistic---which adjusts for the noise introduced by estimating additional parameters under the alternative---together with the out-of-sample~$R^2$ of \citet{campbell2008predicting}, defined as $R^2_{\text{OOS}} = 1 - \text{SSE}_{\text{model}} / \text{SSE}_{\text{AR(1)}}$.
+
+\begin{table}[htbp]
+\centering
+\caption{Clark--West test and out-of-sample $R^2$ vs.\ AR(1)}
+\label{tab:ch1_clarkwest}
+\begin{tabular}{@{} l r r r @{}}
+\toprule
+{Model} & {CW stat} & {CW $p$} & {$R^2_{\text{OOS}}$} \\
+\midrule
+AR(4)              & 3.359 & 0.0004 & 0.290 \\
+DFM                & 2.391 & 0.0084 & 0.127 \\
+Bridge             & 2.965 & 0.0015 & 0.257 \\
+Ridge              & 3.728 & 0.0001 & 0.457 \\
+Gradient Boosting  & 3.502 & 0.0002 & 0.308 \\
+XGBoost            & 3.233 & 0.0006 & 0.270 \\
+LSTM               & 0.929 & 0.176  & $-$0.019 \\
+GRU                & 0.934 & 0.175  & $-$0.019 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The CW test confirms that all models except LSTM and GRU significantly outperform AR(1) at the~1\% level.  Notably, the DFM, which was not significant under the DM test ($p = 0.148$), becomes highly significant under CW ($p = 0.008$), reflecting the power advantage of the nested-model correction.  Ridge achieves the highest CW statistic (3.728) and the largest~$R^2_{\text{OOS}}$ (0.457): nearly half the AR(1) out-of-sample variance is eliminated.
+
+\subsection{Forecast Combination}
+
+Following the combination literature \citep{timmermann2006forecast}, we construct an inverse-RMSE-weighted combination of the seven models that outperform AR(1), excluding LSTM and GRU.  The combined forecast achieves an RMSE of~6{,}686 (a~25.0\% improvement over AR(1)), slightly below the stand-alone Ridge (RMSE~6{,}567, $-26.3$\%).  This small loss relative to the best individual model is not unusual: combination gains are largest when constituent forecasts are diverse and approximately equal in quality \citep{timmermann2006forecast}.
+
+\subsection{Model Confidence Set}
+
+Applying the \citet{hansen2011model} Model Confidence Set (MCS) procedure at the~10\% significance level, all nine models survive---none is eliminated.  This result reflects the small evaluation sample ($T = 51$ quarters): the MCS procedure is conservative with limited data.  The MCS does, however, rank Ridge as the top model and LSTM/GRU at the bottom of the surviving set.
 
 
 % -------------------------------------------------------------------

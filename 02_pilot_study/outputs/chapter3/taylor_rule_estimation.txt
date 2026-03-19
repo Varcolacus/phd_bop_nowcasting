@@ -1,26 +1,27 @@
                             OLS Regression Results                            
 ==============================================================================
-Dep. Variable:                      y   R-squared:                       0.185
-Model:                            OLS   Adj. R-squared:                  0.175
-Method:                 Least Squares   F-statistic:                     9.559
-Date:                Wed, 18 Mar 2026   Prob (F-statistic):           5.56e-06
-Time:                        17:32:37   Log-Likelihood:                -423.71
-No. Observations:                 240   AIC:                             855.4
-Df Residuals:                     236   BIC:                             869.3
-Df Model:                           3                                         
+Dep. Variable:                      y   R-squared:                       0.993
+Model:                            OLS   Adj. R-squared:                  0.993
+Method:                 Least Squares   F-statistic:                     9608.
+Date:                Thu, 19 Mar 2026   Prob (F-statistic):          3.53e-258
+Time:                        12:10:33   Log-Likelihood:                 142.32
+No. Observations:                 239   AIC:                            -274.6
+Df Residuals:                     234   BIC:                            -257.3
+Df Model:                           4                                         
 Covariance Type:                  HAC                                         
 ==============================================================================
                  coef    std err          z      P>|z|      [0.025      0.975]
 ------------------------------------------------------------------------------
-const          0.7808      0.302      2.582      0.010       0.188       1.373
-x1             0.1066      0.242      0.440      0.660      -0.369       0.582
-x2             0.0006      0.000      2.340      0.019       0.000       0.001
-x3            -0.4808      0.161     -2.991      0.003      -0.796      -0.166
+const          0.0213      0.017      1.286      0.199      -0.011       0.054
+x1             0.0404      0.015      2.716      0.007       0.011       0.070
+x2          9.986e-07   1.52e-05      0.066      0.948   -2.88e-05    3.08e-05
+x3            -0.0078      0.009     -0.897      0.370      -0.025       0.009
+x4             0.9829      0.019     51.842      0.000       0.946       1.020
 ==============================================================================
-Omnibus:                       13.045   Durbin-Watson:                   0.166
-Prob(Omnibus):                  0.001   Jarque-Bera (JB):               13.875
-Skew:                           0.586   Prob(JB):                     0.000971
-Kurtosis:                       3.111   Cond. No.                         458.
+Omnibus:                      183.090   Durbin-Watson:                   0.597
+Prob(Omnibus):                  0.000   Jarque-Bera (JB):             3093.229
+Skew:                          -2.829   Prob(JB):                         0.00
+Kurtosis:                      19.692   Cond. No.                         470.
 ==============================================================================
 
 Notes:

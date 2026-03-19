@@ -1,0 +1,10 @@
+model,in_mcs
+AR(1),True
+AR(4),True
+Ridge,True
+DFM,True
+Bridge,True
+GradientBoosting,True
+XGBoost,True
+LSTM,True
+GRU,True

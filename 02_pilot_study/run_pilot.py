@@ -130,6 +130,133 @@ def run_realtime_info_test():
         print("  [INFO] Non-monotonic pattern (may indicate noise)")
 
 
+def _run_enhanced_tests(df_raw, OUTPUT_DIR,
+                        clark_west_test, r2_oos, forecast_combination,
+                        diebold_mariano_test, model_confidence_set,
+                        load_modeling_data, expanding_window_evaluation,
+                        ForecastResult):
+    """Run Clark-West, R²_OOS, DM p-values, forecast combination, and MCS."""
+    import numpy as np
+    import pandas as pd
+
+    # Re-load model results from saved CSVs to reconstruct per-period errors
+    forecast_df = pd.read_csv(OUTPUT_DIR / "forecast_results.csv", parse_dates=["date"])
+    comparison_df = pd.read_csv(OUTPUT_DIR / "model_comparison.csv")
+
+    model_names = forecast_df["model"].unique()
+    benchmark_name = "AR(1)"
+
+    # Build per-model prediction/actual arrays
+    models_data = {}
+    for mname in model_names:
+        sub = forecast_df[forecast_df["model"] == mname].sort_values("date")
+        models_data[mname] = {
+            "actual": sub["actual"].values.astype(float),
+            "predicted": sub["predicted"].values.astype(float),
+        }
+
+    bench = models_data.get(benchmark_name)
+    if bench is None:
+        print("  [WARN] No AR(1) benchmark found.")
+        return
+
+    bench_errors = bench["actual"] - bench["predicted"]
+
+    # ----- DM p-values + Clark-West test -----
+    print("\n  Clark-West (2007) & DM tests vs AR(1):")
+    print(f"  {'Model':<20} {'DM stat':>10} {'DM p':>8} {'CW stat':>10} {'CW p':>8} {'R²_OOS':>10}")
+    print("  " + "-" * 70)
+
+    enhanced_rows = []
+    for mname in model_names:
+        if mname == benchmark_name:
+            continue
+        m = models_data[mname]
+        n = min(len(m["actual"]), len(bench["actual"]))
+        acts = m["actual"][:n]
+        preds = m["predicted"][:n]
+        bench_preds = bench["predicted"][:n]
+        bench_acts = bench["actual"][:n]
+
+        e_model = acts - preds
+        e_bench = bench_acts - bench_preds
+
+        valid = ~np.isnan(e_model) & ~np.isnan(e_bench)
+        if valid.sum() < 10:
+            continue
+
+        dm_stat, dm_p = diebold_mariano_test(e_model[valid], e_bench[valid])
+        cw_stat, cw_p = clark_west_test(e_model[valid], e_bench[valid],
+                                         acts[valid], bench_preds[valid])
+        r2 = r2_oos(acts[valid], preds[valid], bench_preds[valid])
+
+        dm_s = f"{dm_stat:.3f}" if not np.isnan(dm_stat) else "N/A"
+        dm_ps = f"{dm_p:.4f}" if not np.isnan(dm_p) else "N/A"
+        cw_s = f"{cw_stat:.3f}" if not np.isnan(cw_stat) else "N/A"
+        cw_ps = f"{cw_p:.4f}" if not np.isnan(cw_p) else "N/A"
+        r2_s = f"{r2:.4f}" if not np.isnan(r2) else "N/A"
+
+        print(f"  {mname:<20} {dm_s:>10} {dm_ps:>8} {cw_s:>10} {cw_ps:>8} {r2_s:>10}")
+
+        enhanced_rows.append({
+            "model": mname, "dm_stat": dm_stat, "dm_p": dm_p,
+            "cw_stat": cw_stat, "cw_p": cw_p, "r2_oos": r2,
+        })
+
+    pd.DataFrame(enhanced_rows).to_csv(OUTPUT_DIR / "enhanced_tests.csv", index=False)
+    print(f"  Saved enhanced_tests.csv")
+
+    # ----- Forecast Combination -----
+    print("\n  Forecast Combination (inverse-RMSE weights):")
+
+    # Rebuild ForecastResult objects for combination
+    fr_models = {}
+    for mname in model_names:
+        sub = forecast_df[forecast_df["model"] == mname].sort_values("date")
+        fr = ForecastResult(mname)
+        fr.predictions = sub["predicted"].tolist()
+        fr.actuals = sub["actual"].tolist()
+        fr.dates = sub["date"].tolist()
+        rmse_row = comparison_df[comparison_df["model"] == mname]
+        fr.rmse = rmse_row["rmse"].values[0] if len(rmse_row) > 0 else None
+        fr_models[mname] = fr
+
+    combo = forecast_combination(fr_models, method="inverse_rmse",
+                                  exclude=["AR(1)", "LSTM", "GRU"])
+    if combo.rmse:
+        bench_rmse = fr_models[benchmark_name].rmse
+        vs = (combo.rmse - bench_rmse) / bench_rmse * 100 if bench_rmse else 0
+        print(f"  Combination RMSE: {combo.rmse:,.0f} ({vs:+.1f}% vs AR(1))")
+
+        combo_row = pd.DataFrame([{
+            "model": "Combination",
+            "rmse": combo.rmse,
+            "mae": combo.mae,
+            "direction_accuracy": combo.direction_accuracy,
+        }])
+        # Append to model_comparison.csv
+        comp_df = pd.read_csv(OUTPUT_DIR / "model_comparison.csv")
+        comp_df = comp_df[comp_df["model"] != "Combination"]
+        comp_df = pd.concat([comp_df, combo_row], ignore_index=True)
+        comp_df.to_csv(OUTPUT_DIR / "model_comparison.csv", index=False)
+        print(f"  Updated model_comparison.csv with Combination")
+
+    # ----- Model Confidence Set -----
+    print("\n  Model Confidence Set (Hansen, Lunde & Nason 2011):")
+    try:
+        surviving, elim = model_confidence_set(fr_models, alpha=0.10,
+                                                n_boot=1000, block_length=4)
+        print(f"  Superior set (α=0.10): {surviving}")
+        if elim:
+            print(f"  Eliminated: {elim}")
+        mcs_df = pd.DataFrame([{"model": m, "in_mcs": m in surviving}
+                                for m in fr_models.keys()])
+        mcs_df.to_csv(OUTPUT_DIR / "model_confidence_set.csv", index=False)
+        print(f"  Saved model_confidence_set.csv")
+    except Exception as e:
+        print(f"  [WARN] MCS failed: {e}")
+
+
 def main():
     print("+" + "=" * 58 + "+")
     print("|  BOP NOWCASTING PILOT STUDY -- FULL PIPELINE              |")
@@ -154,8 +281,29 @@ def main():
     print("  STEP 2/4: RUNNING MODEL EVALUATION")
     print("#" * 60)
 
-    from src.models import main as run_models  # noqa
+    from src.models import (  # noqa
+        main as run_models,
+        clark_west_test, r2_oos, forecast_combination,
+        diebold_mariano_test, model_confidence_set,
+        load_modeling_data, expanding_window_evaluation,
+        ForecastResult, OUTPUT_DIR,
+    )
     run_models()
+
+    # -- Step 2a: Enhanced statistical tests (Clark-West, R²_OOS, combinations) --
+    print("\n\n" + "#" * 60)
+    print("  STEP 2a: ENHANCED STATISTICAL TESTS")
+    print("#" * 60)
+
+    try:
+        import pandas as _pd
+        _run_enhanced_tests(df, OUTPUT_DIR,
+                            clark_west_test, r2_oos, forecast_combination,
+                            diebold_mariano_test, model_confidence_set,
+                            load_modeling_data, expanding_window_evaluation,
+                            ForecastResult)
+    except Exception as e:
+        print(f"  [WARN] Enhanced tests failed: {e}")
 
     # -- Step 2b: Real-Time Information Flow Test --
     print("\n\n" + "#" * 60)
