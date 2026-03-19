@@ -11,6 +11,10 @@
 04_latex/*.toc
 04_latex/chapters/*.aux
 
+# Python cache
+__pycache__/
+*.pyc
+
 # Temp logs
 *.log
 pdflatex_*.txt
