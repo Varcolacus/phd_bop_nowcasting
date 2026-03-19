@@ -139,11 +139,11 @@ Chapter~3 bridges the gap between statistical accuracy and policy relevance thro
 
 Cette thèse examine si les méthodes d'intelligence artificielle et d'apprentissage automatique peuvent améliorer la rapidité et la précision des estimations de la Balance des Paiements (BdP) de la France, et si ces améliorations sont pertinentes pour la politique économique.  Trois chapitres autonomes abordent cette question.
 
-Le Chapitre~1 réalise une comparaison systématique de neuf modèles pour le \emph{nowcasting} du solde courant trimestriel français (2003--2022).  La régression Ridge obtient la meilleure amélioration~: une réduction du RMSE de 26{,}3\,\% par rapport à l'AR(1), significative au seuil de 1\,\%.
+Le Chapitre~1 réalise une comparaison systématique de neuf modèles pour le \emph{nowcasting} du solde courant trimestriel français (2003--2022).  La régression Ridge obtient la meilleure amélioration~: une réduction du RMSE de 26{,}3\,\% par rapport à l'AR(1), significative au seuil de 5\,\% (DM $p = 0{,}013$).
 
-Le Chapitre~2 conduit une étude d'ablation structurée quantifiant la valeur incrémentale de quatre catégories de données alternatives.  Le modèle complet réalise une réduction significative de 6{,}5\,\% du RMSE, les données textuelles/sentiment fournissant la plus grande contribution marginale (16{,}8\,\%).
+Le Chapitre~2 conduit une étude d'ablation structurée quantifiant la valeur incrémentale de quatre catégories de données alternatives.  Le modèle complet réalise une réduction de 6{,}1\,\% du RMSE (DM $p = 0{,}077$), les données textuelles/sentiment fournissant la plus grande contribution marginale (22{,}6\,\%).
 
-Le Chapitre~3 comble l'écart entre précision statistique et pertinence politique à travers une évaluation en période de crise, des tests de généralisabilité transnationaux, et une analyse contrefactuelle de politique monétaire.  Le coefficient du solde courant dans une règle de Taylor augmentée ($\hat{\delta} = -0{,}481$, $p = 0{,}003$) implique que de meilleures estimations en temps réel auraient modifié les taux directeurs implicites de jusqu'à 159{,}7 points de base.
+Le Chapitre~3 comble l'écart entre précision statistique et pertinence politique à travers une évaluation en période de crise, des tests de généralisabilité transnationaux, et une analyse contrefactuelle de politique monétaire.  Une règle de Taylor augmentée avec lissage des taux d'intérêt produit un coefficient de long terme du solde courant de~$-0{,}46$~; l'écart maximal entre les taux directeurs implicites calculés avec le \emph{nowcast} et avec les données officielles atteint~2{,}6 points de base.
 
 \medskip
 \noindent\textbf{Mots-clés~:} Balance des paiements, nowcasting, apprentissage automatique, régression Ridge, données alternatives, sentiment NLP, SHAP, règle de Taylor, compte courant

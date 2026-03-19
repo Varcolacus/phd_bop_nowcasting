@@ -139,13 +139,13 @@ Figure~\ref{fig:ch3_crosscountry} visualises the Ridge RMSE improvement across c
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.8\textwidth]{figures/ch3_cross_country}
-\caption{Ridge regression RMSE improvement vs.\ AR(1) across four Euro-area economies.  All improvements are statistically significant at the~5\% level.}
+\caption{Ridge regression RMSE improvement vs.\ AR(1) across four Euro-area economies.  Improvements for France, Germany, and Italy are statistically significant at the~5\% level; Spain's improvement is not significant ($p = 0.559$).}
 \label{fig:ch3_crosscountry}
 \end{figure}
 
 Key findings:
 \begin{itemize}
-  \item Ridge delivers substantial RMSE reductions for France ($-20.0$\%), Germany ($-16.0$\%), and Italy ($-20.0$\%), all significant at the~1\% level.  Spain shows a more modest improvement ($-2.5$\%, $p = 0.559$), reflecting the comparatively low volatility of the Spanish trade balance, which leaves less room for ML gains over a simple autoregressive baseline.
+  \item Ridge delivers substantial RMSE reductions for France ($-20.0$\%),\footnote{The France result here ($-20.0$\%) differs from the $-26.3$\% in Chapter~1 because the cross-country exercise uses a common predictor set available for all four countries, rather than the France-specific 14-variable panel of Chapter~1.} Germany ($-16.0$\%), and Italy ($-20.0$\%), all significant at the~1\% level.  Spain shows a more modest improvement ($-2.5$\%, $p = 0.559$), reflecting the comparatively low volatility of the Spanish trade balance, which leaves less room for ML gains over a simple autoregressive baseline.
   \item Out-of-sample~$R^2$ ranges from~0.05 (Spain) to~0.36 (France), confirming that Ridge eliminates approximately one-third of the AR(1) forecast variance for the three largest economies.
   \item The three-country results (FR, DE, IT) are remarkably stable, confirming the generality of the approach for major Euro-area economies.
 \end{itemize}

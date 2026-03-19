@@ -87,15 +87,15 @@ DFM & $k = 2$ principal components extracted via PCA from standardised predictor
 \addlinespace
 Bridge & Quarterly target regressed on quarterly average of best monthly predictor (selected by in-sample $R^2$).  OLS estimation. \\
 \addlinespace
-Ridge & $\ell_2$ penalty, $\alpha$ selected by leave-one-out cross-validation from $[10^{-3}, 10^{5}]$ (100 values, log-spaced).  Features standardised (zero mean, unit variance). \\
+Ridge & $\ell_2$ penalty, $\alpha$ selected by efficient leave-one-out cross-validation from $\{0.01, 0.1, 1, 10, 100\}$.  Features standardised (zero mean, unit variance). \\
 \addlinespace
-Gradient Boosting & \texttt{n\_estimators}$= 100$, \texttt{max\_depth}$= 3$, \texttt{learning\_rate}$= 0.05$, \texttt{subsample}$= 0.8$, \texttt{min\_samples\_leaf}$= 5$.  Early stopping with patience 10. \\
+Gradient Boosting & \texttt{n\_estimators}$= 100$, \texttt{max\_depth}$= 3$, \texttt{learning\_rate}$= 0.05$, \texttt{min\_samples\_leaf}$= 5$. \\
 \addlinespace
-XGBoost & \texttt{n\_estimators}$= 100$, \texttt{max\_depth}$= 3$, \texttt{learning\_rate}$= 0.05$, \texttt{colsample\_bytree}$= 0.8$, \texttt{reg\_lambda}$= 1.0$, \texttt{subsample}$= 0.8$.  Early stopping. \\
+XGBoost & \texttt{n\_estimators}$= 100$, \texttt{max\_depth}$= 3$, \texttt{learning\_rate}$= 0.1$, \texttt{colsample\_bytree}$= 0.8$, \texttt{reg\_alpha}$= 0.1$, \texttt{reg\_lambda}$= 1.0$, \texttt{min\_child\_weight}$= 5$. \\
 \addlinespace
-LSTM & 2 layers, 32 hidden units/layer, lookback $= 6$, dropout $= 0.1$, weight decay $= 10^{-4}$.  Adam optimiser (lr $= 0.001$).  100 epochs max, early stopping (patience 15).  PyTorch implementation. \\
+LSTM & 1 layer, 32 hidden units, lookback $= 4$.  Adam optimiser (lr $= 0.005$).  100 epochs max, early stopping (patience 15).  PyTorch implementation. \\
 \addlinespace
-GRU & 2 layers, 32 hidden units/layer, lookback $= 6$, dropout $= 0.1$, weight decay $= 10^{-4}$.  Adam optimiser (lr $= 0.001$).  100 epochs max, early stopping (patience 15).  Replaces LSTM's 3 gates with 2 (reset, update). \\
+GRU & 2 layers, 32 hidden units/layer, lookback $= 4$, dropout $= 0.1$, weight decay $= 10^{-4}$.  Adam optimiser (lr $= 0.005$).  100 epochs max, early stopping (patience 15).  Replaces LSTM's 3 gates with 2 (reset, update). \\
 \bottomrule
 \end{tabular}
 \end{table}

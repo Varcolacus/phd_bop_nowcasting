@@ -99,9 +99,9 @@ We evaluate nine models spanning four methodological families:
 
 \paragraph{Machine Learning -- Nonlinear.}
 \begin{itemize}
-  \item \textbf{Gradient Boosting (GB):} Sklearn implementation, 100 trees, max depth~3, learning rate~0.05, with early stopping.
+  \item \textbf{Gradient Boosting (GB):} Sklearn implementation, 100 trees, max depth~3, learning rate~0.05, min samples leaf~5.
   \item \textbf{XGBoost:} Same architecture as GB but with column subsampling (0.8) and $\ell_2$ regularisation ($\lambda = 1$) \citep{chen2016xgboost}.
-  \item \textbf{LSTM:} Two-layer LSTM with 32 hidden units per layer, lookback window of 6 periods, trained with Adam optimiser (lr $= 0.001$) for 100 epochs with early stopping (patience~15) \citep{hochreiter1997long}.
+  \item \textbf{LSTM:} Single-layer LSTM with 32 hidden units, lookback window of 4 periods, trained with Adam optimiser (lr $= 0.005$) for 100 epochs with early stopping (patience~15) \citep{hochreiter1997long}.
   \item \textbf{GRU:} Two-layer Gated Recurrent Unit with 32 hidden units, dropout~0.1, weight decay $10^{-4}$, and early stopping (patience~15).  GRU is a simpler recurrent architecture that replaces LSTM's three gates with two \citep{cho2014learning}.
 \end{itemize}
 
