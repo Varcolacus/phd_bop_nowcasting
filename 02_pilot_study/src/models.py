@@ -142,7 +142,7 @@ def gradient_boosting_forecast(X_train, y_train, X_test_row):
     model = GradientBoostingRegressor(
         n_estimators=100,
         max_depth=3,
-        learning_rate=0.1,
+        learning_rate=0.05,
         min_samples_leaf=5,
         random_state=42,
     )
@@ -165,6 +165,7 @@ def xgboost_forecast(X_train, y_train, X_test_row):
         max_depth=3,
         learning_rate=0.1,
         min_child_weight=5,
+        colsample_bytree=0.8,
         reg_alpha=0.1,
         reg_lambda=1.0,
         random_state=42,

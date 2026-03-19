@@ -18,6 +18,7 @@ Author: PhD Pilot Study
 Date: March 2026
 """
 
+import os
 import warnings
 import requests
 import numpy as np
@@ -26,6 +27,9 @@ from pathlib import Path
 from datetime import datetime
 
 warnings.filterwarnings("ignore")
+
+# SSL verification: override via NOWCAST_VERIFY_SSL=true if not behind a proxy
+VERIFY_SSL = os.getenv('NOWCAST_VERIFY_SSL', 'false').lower() == 'true'
 
 DATA_DIR = Path(__file__).parent.parent / "data"
 ALT_DATA_DIR = DATA_DIR / "alternative"
@@ -166,7 +170,7 @@ def scrape_ecb_statement(url):
     """
     try:
         from bs4 import BeautifulSoup
-        resp = requests.get(url, timeout=30, verify=False,
+        resp = requests.get(url, timeout=30, verify=VERIFY_SSL,
                             headers={"User-Agent": "Mozilla/5.0"})
         resp.raise_for_status()
         soup = BeautifulSoup(resp.text, "lxml")
@@ -357,7 +361,7 @@ def run_nlp_pipeline(start_year=2008, end_year=2022):
     ]
     for listing_url in main_listing_urls:
         try:
-            resp = requests.get(listing_url, timeout=15, verify=False,
+            resp = requests.get(listing_url, timeout=15, verify=VERIFY_SSL,
                                 headers={"User-Agent": "Mozilla/5.0"})
             if resp.status_code == 200:
                 soup = BeautifulSoup(resp.text, "lxml")
@@ -396,7 +400,7 @@ def run_nlp_pipeline(start_year=2008, end_year=2022):
                         f"https://www.ecb.europa.eu/press/pr/date/{yr}"
                         "/html/index.en.html"
                     )
-                resp = requests.get(archive_url, timeout=8, verify=False,
+                resp = requests.get(archive_url, timeout=8, verify=VERIFY_SSL,
                                     headers={"User-Agent": "Mozilla/5.0"})
                 if resp.status_code == 200:
                     consecutive_failures = 0
@@ -435,7 +439,7 @@ def run_nlp_pipeline(start_year=2008, end_year=2022):
     # --- Also try the ECB press release RSS/search API ---
     try:
         search_url = "https://www.ecb.europa.eu/press/pr/html/index.en.html"
-        resp = requests.get(search_url, timeout=15, verify=False,
+        resp = requests.get(search_url, timeout=15, verify=VERIFY_SSL,
                             headers={"User-Agent": "Mozilla/5.0"})
         if resp.status_code == 200:
             soup = BeautifulSoup(resp.text, "lxml")
@@ -504,7 +508,7 @@ def run_nlp_pipeline(start_year=2008, end_year=2022):
         found_text = False
         for url in urls_to_try:
             try:
-                resp = requests.get(url, timeout=8, verify=False,
+                resp = requests.get(url, timeout=8, verify=VERIFY_SSL,
                                     headers={"User-Agent": "Mozilla/5.0"})
                 if resp.status_code == 200 and len(resp.content) > 500:
                     # Handle PDF documents

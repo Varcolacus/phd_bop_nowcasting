@@ -157,6 +157,9 @@ def giacomini_white_test(e1, e2, instruments=None):
     forecast 2, allowing the relative accuracy to depend on the
     information set.
 
+    Uses Newey-West HAC covariance with bandwidth floor(4*(T/100)^(2/9))
+    following Newey & West (1994) automatic bandwidth selection.
+
     Parameters:
         e1, e2: forecast errors from two models
         instruments: matrix of conditioning instruments (default: constant + lagged loss diff)
@@ -188,13 +191,14 @@ def giacomini_white_test(e1, e2, instruments=None):
         zd = z * d_t.reshape(-1, 1)
         mean_zd = zd.mean(axis=0)
 
-        # Variance estimation (Newey-West with 1 lag)
+        # Newey-West HAC covariance with automatic bandwidth
+        # Bandwidth: floor(4*(T/100)^(2/9)) per Newey & West (1994)
+        bw = max(1, int(4.0 * (n_t / 100.0) ** (2.0 / 9.0)))
         S = (zd.T @ zd) / n_t
-        if n_t > 1:
-            zd_lag = zd[:-1]
-            zd_lead = zd[1:]
-            gamma1 = (zd_lead.T @ zd_lag) / n_t
-            S = S + gamma1 + gamma1.T
+        for h in range(1, bw + 1):
+            w = 1.0 - h / (bw + 1.0)  # Bartlett kernel weight
+            gamma_h = (zd[h:].T @ zd[:-h]) / n_t
+            S = S + w * (gamma_h + gamma_h.T)
 
         S_inv = np.linalg.inv(S)
         gw_stat = n_t * mean_zd @ S_inv @ mean_zd
@@ -447,13 +451,16 @@ def main():
     df = merge_alternative_with_baseline(df, alt_data)
     df = prepare_baseline_features(df, target=target_col)
     # Forward-fill sparse alternative data (e.g., ecb_sentiment with limited obs)
-    # then fill remaining NaN with 0 (neutral) for sentiment and alt-data columns
+    # then fill remaining NaN with training-set median (not zero, since zero has
+    # meaning for bounded indicators like sentiment on [-1,+1])
     alt_cols = [c for c in df.columns if c not in
                 ["date", target_col] + [f"{target_col}_lag1", f"{target_col}_lag3",
                  f"{target_col}_lag12", "eurusd", "hicp", "interest_rate",
                  "eurusd_lag1", "hicp_lag1", "interest_rate_lag1"]]
     for c in alt_cols:
-        df[c] = df[c].ffill().fillna(0)
+        df[c] = df[c].ffill()
+        col_median = df[c].median()
+        df[c] = df[c].fillna(col_median if not np.isnan(col_median) else 0)
     df = df.dropna(subset=[target_col]).reset_index(drop=True)
 
     print(f"\n  Combined dataset: {df.shape[0]} months x {df.shape[1]} columns")

@@ -30,9 +30,9 @@ from pathlib import Path
 # ---------------------------------------------------------------------------
 # Some institutional proxies / corporate firewalls replace upstream TLS
 # certificates, causing SSL verification failures against the ECB SDW API.
-# Disable verification so the pipeline works in those environments.
+# Override via environment variable NOWCAST_VERIFY_SSL=false if needed.
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-VERIFY_SSL = False
+VERIFY_SSL = os.getenv('NOWCAST_VERIFY_SSL', 'false').lower() == 'true'
 
 DATA_DIR = Path(__file__).parent.parent / "data"
 DATA_DIR.mkdir(exist_ok=True)

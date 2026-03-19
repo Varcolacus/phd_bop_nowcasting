@@ -305,6 +305,121 @@ def main():
     except Exception as e:
         print(f"  [WARN] Enhanced tests failed: {e}")
 
+    # -- Step 2a-ii: Sub-Period RMSE Breakdown --
+    print("\n\n" + "#" * 60)
+    print("  STEP 2a-ii: SUB-PERIOD RMSE BREAKDOWN")
+    print("#" * 60)
+
+    try:
+        import pandas as _spd
+        import numpy as _np
+        forecast_df = _spd.read_csv(OUTPUT_DIR / "forecast_results.csv",
+                                    parse_dates=["date"])
+        periods = [
+            ("2010-2014", "2010-01-01", "2014-12-31"),
+            ("2015-2019", "2015-01-01", "2019-12-31"),
+            ("2020-2022", "2020-01-01", "2022-12-31"),
+        ]
+        sp_rows = []
+        for pname, pstart, pend in periods:
+            mask = (forecast_df["date"] >= pstart) & (forecast_df["date"] <= pend)
+            sub = forecast_df[mask]
+            ar1_rmse = None
+            for mname in sub["model"].unique():
+                ms = sub[sub["model"] == mname]
+                errs = ms["actual"].values - ms["predicted"].values
+                rmse = _np.sqrt(_np.mean(errs ** 2))
+                if mname == "AR(1)":
+                    ar1_rmse = rmse
+                sp_rows.append({"period": pname, "model": mname,
+                                "rmse": round(rmse), "n_obs": len(ms)})
+            # Add pct improvement vs AR(1)
+            if ar1_rmse and ar1_rmse > 0:
+                for row in sp_rows:
+                    if row["period"] == pname:
+                        row["pct_vs_ar1"] = round(
+                            (row["rmse"] - ar1_rmse) / ar1_rmse * 100, 1)
+
+        sp_df = _spd.DataFrame(sp_rows)
+        sp_df.to_csv(OUTPUT_DIR / "subperiod_rmse.csv", index=False)
+        print(f"  Saved subperiod_rmse.csv ({len(sp_rows)} rows)")
+        # Print summary table
+        for pname, _, _ in periods:
+            psub = sp_df[sp_df["period"] == pname]
+            ar1_r = psub[psub["model"] == "AR(1)"]["rmse"].values
+            ridge_r = psub[psub["model"] == "Ridge"]["rmse"].values
+            n_o = psub["n_obs"].iloc[0] if len(psub) > 0 else 0
+            if len(ar1_r) > 0 and len(ridge_r) > 0:
+                pct = (ridge_r[0] - ar1_r[0]) / ar1_r[0] * 100
+                print(f"  {pname}: AR(1)={ar1_r[0]:.0f}, Ridge={ridge_r[0]:.0f} "
+                      f"({pct:+.1f}%), N={n_o}")
+    except Exception as e:
+        print(f"  [WARN] Sub-period analysis failed: {e}")
+
+    # -- Step 2a-iii: Hyperparameter Sensitivity --
+    print("\n\n" + "#" * 60)
+    print("  STEP 2a-iii: HYPERPARAMETER SENSITIVITY")
+    print("#" * 60)
+
+    try:
+        from sklearn.ensemble import GradientBoostingRegressor
+        import xgboost as xgb_mod
+        import numpy as _npx
+
+        hp_df_data = load_modeling_data()
+        hp_target = "bop_ca"
+        hp_features = [c for c in hp_df_data.columns
+                       if c not in ["date", hp_target]]
+        hp_y = hp_df_data[hp_target].values
+        hp_X = hp_df_data[hp_features].values
+
+        min_train = 40
+        sens_rows = []
+
+        # Configurations to test
+        configs = [
+            ("GB_default", "GB", {"n_estimators": 100, "max_depth": 3,
+             "learning_rate": 0.05, "min_samples_leaf": 5}),
+            ("GB_lr01", "GB", {"n_estimators": 100, "max_depth": 3,
+             "learning_rate": 0.1, "min_samples_leaf": 5}),
+            ("GB_depth5", "GB", {"n_estimators": 100, "max_depth": 5,
+             "learning_rate": 0.05, "min_samples_leaf": 5}),
+            ("XGB_default", "XGB", {"n_estimators": 100, "max_depth": 3,
+             "learning_rate": 0.1, "min_child_weight": 5,
+             "colsample_bytree": 0.8, "reg_alpha": 0.1, "reg_lambda": 1.0}),
+            ("XGB_lr005", "XGB", {"n_estimators": 100, "max_depth": 3,
+             "learning_rate": 0.05, "min_child_weight": 5,
+             "colsample_bytree": 0.8, "reg_alpha": 0.1, "reg_lambda": 1.0}),
+            ("XGB_noreg", "XGB", {"n_estimators": 100, "max_depth": 3,
+             "learning_rate": 0.1, "min_child_weight": 5,
+             "colsample_bytree": 1.0, "reg_alpha": 0.0, "reg_lambda": 0.0}),
+        ]
+
+        for cfg_name, model_type, params in configs:
+            preds, actuals = [], []
+            for t in range(min_train, len(hp_y)):
+                X_tr, y_tr = hp_X[:t], hp_y[:t]
+                X_te = hp_X[t:t+1]
+                if model_type == "GB":
+                    m = GradientBoostingRegressor(random_state=42, **params)
+                else:
+                    m = xgb_mod.XGBRegressor(random_state=42, verbosity=0,
+                                             **params)
+                m.fit(X_tr, y_tr)
+                preds.append(m.predict(X_te)[0])
+                actuals.append(hp_y[t])
+            errs = _npx.array(actuals) - _npx.array(preds)
+            rmse = _npx.sqrt(_npx.mean(errs ** 2))
+            sens_rows.append({"config": cfg_name, "model_type": model_type,
+                              "rmse": round(rmse), "params": str(params)})
+            print(f"  {cfg_name}: RMSE = {rmse:,.0f}")
+
+        sens_df = _spd.DataFrame(sens_rows)
+        sens_df.to_csv(OUTPUT_DIR / "hyperparameter_sensitivity.csv", index=False)
+        print(f"  Saved hyperparameter_sensitivity.csv")
+    except Exception as e:
+        print(f"  [WARN] Hyperparameter sensitivity failed: {e}")
+
     # -- Step 2b: Real-Time Information Flow Test --
     print("\n\n" + "#" * 60)
     print("  STEP 2b: REAL-TIME INFORMATION FLOW TEST")

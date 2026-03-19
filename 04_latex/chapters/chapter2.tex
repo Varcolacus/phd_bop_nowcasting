@@ -5,7 +5,7 @@
 \label{ch:alternative_data}
 
 \begin{abstract}
-This chapter conducts a structured ablation study to quantify the incremental forecasting value of alternative data for BoP nowcasting.  Using Ridge regression (the best-performing model from Chapter~1) and monthly goods trade balance data for France (2008--2022), we progressively incorporate four categories of alternative data---trade-activity proxies, financial-flow indicators, text/sentiment data, and satellite/geospatial proxies---into a baseline model that uses only conventional macroeconomic predictors.  The full model incorporating all categories achieves a~6.1\% RMSE reduction over the baseline (Diebold--Mariano $p = 0.077$; Giacomini--White $p = 0.265$), with a block-bootstrap 95\% confidence interval entirely below zero ($[-12.7, +1.1]$\%).  SHAP decomposition reveals that text/sentiment data (ECB FinBERT, Banque de France BCI) provide the largest marginal contribution (22.6\% of total SHAP importance), followed by trade-activity proxies (8.6\%), financial indicators (6.4\%), and satellite data (4.9\%).  A cost--benefit analysis shows that the text/sentiment category offers the highest signal-per-complexity ratio, while satellite data provide modest but complementary information during supply-chain disruptions.
+This chapter conducts a structured ablation study to quantify the incremental forecasting value of alternative data for BoP nowcasting.  Using Ridge regression (the best-performing model from Chapter~1) and monthly goods trade balance data for France (2008--2022), we progressively incorporate four categories of alternative data---trade-activity proxies, financial-flow indicators, text/sentiment data, and satellite/geospatial proxies---into a baseline model that uses only conventional macroeconomic predictors.  The full model incorporating all categories achieves a~6.1\% RMSE reduction over the baseline (Diebold--Mariano $p = 0.077$; Giacomini--White $p = 0.213$), with a block-bootstrap 95\% confidence interval entirely below zero ($[-12.7, +1.1]$\%).  SHAP decomposition reveals that text/sentiment data (ECB FinBERT, Banque de France BCI) provide the largest marginal contribution (22.6\% of total SHAP importance), followed by trade-activity proxies (8.6\%), financial indicators (6.4\%), and satellite data (4.9\%).  A cost--benefit analysis shows that the text/sentiment category offers the highest signal-per-complexity ratio, while satellite data provide modest but complementary information during supply-chain disruptions.
 \end{abstract}
 
 
@@ -117,7 +117,7 @@ Expanding-window evaluation with minimum training window of 96~months (8~years):
 
 \begin{itemize}
   \item \textbf{Diebold--Mariano (DM):} Pairwise test of equal predictive ability, $H_0{:}\; E[e_{M0,t}^2 - e_{Mk,t}^2] = 0$ \citep{diebold1995comparing}.
-  \item \textbf{Giacomini--White (GW):} Conditional predictive ability test, which conditions on past forecast performance and is valid under nested model comparisons \citep{giacomini2006tests}.
+  \item \textbf{Giacomini--White (GW):} Conditional predictive ability test, which conditions on past forecast performance and is valid under nested model comparisons \citep{giacomini2006tests}.  The HAC variance estimator uses a Bartlett kernel with bandwidth selected by the \citet{newey1994automatic} plug-in rule, $\lfloor 4(T/100)^{2/9}\rfloor$.
   \item \textbf{Model Confidence Set (MCS):} \citet{hansen2011model} procedure that identifies the set of models whose forecasts are not significantly worse than the best, at the~10\% level.
 \end{itemize}
 
@@ -147,16 +147,16 @@ Table~\ref{tab:ch2_ablation_results} presents the ablation study results.
 {Model} & {RMSE} & {\% vs.\ M0} & {DM $p$} & {GW $p$} \\
 \midrule
 M0 (Baseline)  & 1998 &  {---} & {---}   & {---}  \\
-M1 (+Trade)    & 1954 & $-$2.2 & 0.087 & 0.401 \\
-M2 (+Financial)& 1952 & $-$2.3 & 0.134 & 0.258 \\
-M3 (+Text)     & 1971 & $-$1.3 & 0.627 & 0.705 \\
-M4 (+Satellite)& 1989 & $-$0.4 & 0.595 & 0.871 \\
-M5 (Full)      & 1876 & $-$6.1 & 0.077 & 0.265 \\
+M1 (+Trade)    & 1954 & $-$2.2 & 0.087 & 0.332 \\
+M2 (+Financial)& 1952 & $-$2.3 & 0.134 & 0.313 \\
+M3 (+Text)     & 1971 & $-$1.3 & 0.627 & 0.617 \\
+M4 (+Satellite)& 1989 & $-$0.4 & 0.595 & 0.852 \\
+M5 (Full)      & 1876 & $-$6.1 & 0.077 & 0.213 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The key finding is that \emph{no single alternative data category} provides a statistically significant improvement in isolation (M1--M4 all have DM~$p > 0.05$), but the \emph{combination} of all categories (M5) delivers a~6.1\% RMSE reduction that is marginally significant under the DM test ($p = 0.077$) and directionally consistent under the GW test ($p = 0.265$).  The block-bootstrap 95\% confidence interval for the M5 improvement is $[-12.7, +1.1]$\%, spanning zero but concentrated on the negative side.
+The key finding is that \emph{no single alternative data category} provides a statistically significant improvement in isolation (M1--M4 all have DM~$p > 0.05$), but the \emph{combination} of all categories (M5) delivers a~6.1\% RMSE reduction that is marginally significant under the DM test ($p = 0.077$) and directionally consistent under the GW test ($p = 0.213$).  The block-bootstrap 95\% confidence interval for the M5 improvement is $[-12.7, +1.1]$\%, spanning zero but concentrated on the negative side.
 
 This pattern---individual categories are marginal, but their combination is substantial---is consistent with a diversification logic: each data source provides a small, partially orthogonal signal, and Ridge regression's $\ell_2$ penalty optimally combines them while guarding against overfitting.
 
