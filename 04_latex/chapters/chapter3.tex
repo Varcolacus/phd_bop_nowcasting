@@ -58,7 +58,7 @@ Table~\ref{tab:ch3_crisis_results} presents crisis-specific performance.
 \centering
 \caption{Crisis episode evaluation: RMSE improvement vs.\ AR(1)}
 \label{tab:ch3_crisis_results}
-\begin{tabular}{@{} l S[table-format=+3.1] S[table-format=+3.1] S[table-format=+3.1] @{}}
+\begin{tabular}{@{} l r r r @{}}
 \toprule
 {Model} & {GFC (\%)} & {COVID (\%)} & {Energy (\%)} \\
 \midrule
@@ -68,6 +68,13 @@ XGBoost            &  +6.2 & -31.7 & +5.4 \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.85\textwidth]{figures/ch3_crisis_comparison}
+\caption{RMSE comparison across crisis episodes (GFC, COVID, Energy shock) for selected models vs.\ AR(1).}
+\label{fig:ch3_crisis}
+\end{figure}
 
 Three patterns emerge.
 
@@ -96,7 +103,7 @@ Table~\ref{tab:ch3_crosscountry} presents the Ridge RMSE improvement vs.\ AR(1) 
 \centering
 \caption{Cross-country generalisability: Ridge RMSE improvement vs.\ AR(1)}
 \label{tab:ch3_crosscountry}
-\begin{tabular}{@{} l S[table-format=+3.1] S[table-format=1.3] @{}}
+\begin{tabular}{@{} l r r @{}}
 \toprule
 {Country} & {\% vs.\ AR(1)} & {DM $p$-value} \\
 \midrule
@@ -107,6 +114,15 @@ Spain   & -13.2 & 0.022 \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+Figure~\ref{fig:ch3_crosscountry} visualises the Ridge RMSE improvement across countries.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.8\textwidth]{figures/ch3_cross_country}
+\caption{Ridge regression RMSE improvement vs.\ AR(1) across four Euro-area economies.  All improvements are statistically significant at the~5\% level.}
+\label{fig:ch3_crosscountry}
+\end{figure}
 
 Key findings:
 \begin{itemize}
@@ -138,7 +154,7 @@ where $i_t$ is the ECB main refinancing rate, $\pi_t$ is HICP inflation, $\pi^* 
 The coefficient $\delta$ measures the sensitivity of the implied interest rate to external balance conditions: if $\delta < 0$, a current account surplus (improvement) is associated with a lower implied rate, consistent with the view that external surpluses reflect excess domestic saving and weak internal demand.
 
 \paragraph{Literature context.}
-The idea of augmenting Taylor rules with external variables has antecedents.  \citet{taylor2001role} discusses the role of exchange rates in monetary policy rules.  \citet{lubik2007exchange} estimate Taylor rules with exchange rates for several countries.  \citet{svensson2003escaping} analyses augmented policy rules in the context of the liquidity trap.  The European Commission's MIP uses current account balances as a key surveillance variable \citep{eu2016mip}.
+The idea of augmenting Taylor rules with external variables has antecedents.  \citet{taylor2001role} discusses the role of exchange rates in monetary policy rules.  \citet{lubik2007central} estimate Taylor rules with exchange rates for several countries.  \citet{svensson2003wrong} analyses augmented policy rules in the context of the liquidity trap.  The European Commission's MIP uses current account balances as a key surveillance variable \citep{eu2016mip}.
 
 \subsection{Estimation Results}
 
@@ -148,7 +164,7 @@ Table~\ref{tab:ch3_taylor} presents the OLS estimation of Equation~\eqref{eq:tay
 \centering
 \caption{BoP-augmented Taylor rule estimation (2003--2022)}
 \label{tab:ch3_taylor}
-\begin{tabular}{@{} l S[table-format=+1.3] S[table-format=1.3] @{}}
+\begin{tabular}{@{} l r r @{}}
 \toprule
 {Variable} & {Coefficient} & {$p$-value} \\
 \midrule
@@ -220,4 +236,4 @@ Three caveats apply.  First, the Taylor rule is a reduced-form description of po
 \section{Conclusion}
 \label{sec:ch3_conclusion}
 
-This chapter demonstrates that the statistical accuracy improvements documented in Chapters~1--2 have tangible policy implications.  Better BoP nowcasts perform best during crises ($-18$ to $-26\%$ RMSE), generalise across Euro-area economies ($-16$ to $-20\%$ RMSE for DE, IT, ES), and would have shifted implied policy rates by up to~160~basis points at peak crisis episodes.  These findings collectively make a strong case for the operational deployment of AI-based BoP nowcasting systems.
+This chapter demonstrates that the statistical accuracy improvements documented in Chapters~1--2 have tangible policy implications.  Better BoP nowcasts perform best during crises (Ridge: $-5$ to $-17\%$ RMSE; XGBoost: up to $-32\%$ during COVID), generalise across Euro-area economies ($-13$ to $-20\%$ RMSE for FR, DE, IT, ES), and would have shifted implied policy rates by up to~160~basis points at peak crisis episodes.  These findings collectively make a strong case for the operational deployment of AI-based BoP nowcasting systems.

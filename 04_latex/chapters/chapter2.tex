@@ -142,7 +142,7 @@ Table~\ref{tab:ch2_ablation_results} presents the ablation study results.
 \centering
 \caption{Ablation study: RMSE and improvement over M0 baseline}
 \label{tab:ch2_ablation_results}
-\begin{tabular}{@{} l S[table-format=4.0] S[table-format=+2.1] S[table-format=1.3] S[table-format=1.3] @{}}
+\begin{tabular}{@{} l r r r r @{}}
 \toprule
 {Model} & {RMSE} & {\% vs.\ M0} & {DM $p$} & {GW $p$} \\
 \midrule
@@ -168,7 +168,7 @@ We compute block bootstrap confidence intervals (block length $= 6$ months) with
 \centering
 \caption{Bootstrap 95\% confidence intervals for RMSE improvement vs.\ M0}
 \label{tab:ch2_bootstrap}
-\begin{tabular}{@{} l S[table-format=+2.1] c @{}}
+\begin{tabular}{@{} l r c @{}}
 \toprule
 {Model} & {\% vs.\ M0} & {95\% CI} \\
 \midrule
@@ -189,13 +189,27 @@ The \citet{hansen2011model} MCS procedure at the~10\% level retains M5 (Full), M
 
 \subsection{SHAP Decomposition}
 
-Figure~\ref{fig:ch2_shap} presents the SHAP category decomposition for the M5 (Full) model.
+Figure~\ref{fig:ch2_shap} presents the SHAP category decomposition for the M5 (Full) model, and Figure~\ref{fig:ch2_shap_m5} shows the individual feature-level SHAP values.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.8\textwidth]{figures/ch2_shap_categories}
+\caption{SHAP importance decomposition by data category for the M5 (Full) model.  Conventional macro predictors account for~63\% of forecast variation; text/sentiment data provide the largest alternative data contribution (17\%).}
+\label{fig:ch2_shap}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.8\textwidth]{figures/ch2_shap_m5}
+\caption{Feature-level SHAP summary plot for the M5 model.  Each dot represents one evaluation date; colour indicates feature value (red = high, blue = low).}
+\label{fig:ch2_shap_m5}
+\end{figure}
 
 \begin{table}[htbp]
 \centering
 \caption{SHAP importance decomposition by data category (M5 Full model)}
 \label{tab:ch2_shap}
-\begin{tabular}{@{} l S[table-format=2.1] @{}}
+\begin{tabular}{@{} l r @{}}
 \toprule
 {Category} & {Share (\%)} \\
 \midrule

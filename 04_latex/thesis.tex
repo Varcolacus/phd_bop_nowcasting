@@ -39,7 +39,10 @@
 \usepackage{listings}
 \lstset{basicstyle=\ttfamily\small, breaklines=true, frame=single}
 
-% ── Cross-referencing & Hyperlinks ───────────────────────────────────────
+% ── Graphics Path ─────────────────────────────────────────────────────
+\graphicspath{{figures/}}
+
+\usepackage[dvipsnames,svgnames,x11names]{xcolor}
 \usepackage[
   colorlinks=true,
   linkcolor=blue!60!black,
@@ -107,6 +110,54 @@
 {\small First draft --- pilot study version\par}
 \end{titlepage}
 
+% ── Abstract ─────────────────────────────────────────────────────────────
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+
+This thesis investigates whether artificial intelligence and machine learning methods can improve the timeliness and accuracy of France's Balance of Payments (BoP) estimates, and whether such improvements carry policy relevance.  Three self-contained chapters address this question.
+
+Chapter~1 conducts a systematic comparison of nine models---spanning autoregressive benchmarks, econometric approaches (Dynamic Factor Model, Bridge equation), regularised linear machine learning (Ridge regression), nonlinear ensembles (Gradient Boosting, XGBoost), and deep learning (LSTM, GRU)---for nowcasting France's quarterly current account balance over 2003--2022.  In a pseudo-real-time expanding-window evaluation, Ridge regression achieves the largest and most robust improvement: a 26.3\% RMSE reduction over AR(1), significant at the 1\% level via the Diebold--Mariano test.  Both LSTM and GRU fail entirely, confirming that deep learning is ill-suited to small-sample macroeconomic settings.
+
+Chapter~2 conducts a structured ablation study to quantify the incremental value of four categories of alternative data---trade-activity proxies, financial-flow indicators, text/sentiment data, and satellite/geospatial proxies---for monthly goods trade balance nowcasting.  The full model incorporating all categories achieves a statistically significant 6.5\% RMSE reduction over the baseline (DM $p = 0.020$; GW $p = 0.032$).  SHAP decomposition reveals that text/sentiment data provide the largest marginal contribution (16.8\% of total importance), followed by trade-activity proxies (8.3\%).
+
+Chapter~3 bridges the gap between statistical accuracy and policy relevance through three exercises.  Crisis evaluation shows that Ridge nowcasts maintained substantial accuracy gains during COVID-19 ($-17.2\%$ RMSE).  Cross-country tests confirm generalisability across Germany, Italy, and Spain (16--20\% improvements).  A BoP-augmented Taylor rule yields an estimated current account gap coefficient of $\hat{\delta} = -0.481$ ($p = 0.003$), implying that better real-time BoP estimates would have shifted implied policy rates by up to 159.7 basis points at peak crisis episodes.
+
+\medskip
+\noindent\textbf{Keywords:} Balance of Payments, nowcasting, machine learning, Ridge regression, alternative data, NLP sentiment, SHAP, Taylor rule, current account
+
+\medskip
+\noindent\textbf{JEL Classification:} C53, C55, E37, F32, F47
+
+% ── Résumé (French Abstract) ────────────────────────────────────────────
+\chapter*{Résumé}
+\addcontentsline{toc}{chapter}{Résumé}
+
+Cette thèse examine si les méthodes d'intelligence artificielle et d'apprentissage automatique peuvent améliorer la rapidité et la précision des estimations de la Balance des Paiements (BdP) de la France, et si ces améliorations sont pertinentes pour la politique économique.  Trois chapitres autonomes abordent cette question.
+
+Le Chapitre~1 réalise une comparaison systématique de neuf modèles pour le \emph{nowcasting} du solde courant trimestriel français (2003--2022).  La régression Ridge obtient la meilleure amélioration~: une réduction du RMSE de 26{,}3\,\% par rapport à l'AR(1), significative au seuil de 1\,\%.
+
+Le Chapitre~2 conduit une étude d'ablation structurée quantifiant la valeur incrémentale de quatre catégories de données alternatives.  Le modèle complet réalise une réduction significative de 6{,}5\,\% du RMSE, les données textuelles/sentiment fournissant la plus grande contribution marginale (16{,}8\,\%).
+
+Le Chapitre~3 comble l'écart entre précision statistique et pertinence politique à travers une évaluation en période de crise, des tests de généralisabilité transnationaux, et une analyse contrefactuelle de politique monétaire.  Le coefficient du solde courant dans une règle de Taylor augmentée ($\hat{\delta} = -0{,}481$, $p = 0{,}003$) implique que de meilleures estimations en temps réel auraient modifié les taux directeurs implicites de jusqu'à 159{,}7 points de base.
+
+\medskip
+\noindent\textbf{Mots-clés~:} Balance des paiements, nowcasting, apprentissage automatique, régression Ridge, données alternatives, sentiment NLP, SHAP, règle de Taylor, compte courant
+
+% ── Acknowledgements ─────────────────────────────────────────────────────
+\chapter*{Acknowledgements}
+\addcontentsline{toc}{chapter}{Acknowledgements}
+
+I would like to express my sincere gratitude to my thesis supervisor, [Supervisor Name], for guidance, patience, and constructive feedback throughout this research project.
+
+I thank [Institution/University] and the doctoral school for providing the academic environment and resources that made this work possible.
+
+I am grateful to the Banque de France, the European Central Bank, and the various public data providers (FRED, Eurostat, Google Trends) whose open-access data policies made this empirical research feasible.
+
+Any remaining errors are my own.
+
+\vspace{2cm}
+\hfill [City], March 2026
+
 % ── Front Matter ─────────────────────────────────────────────────────────
 \pagenumbering{roman}
 
@@ -124,6 +175,10 @@
 \include{chapters/chapter2}
 \include{chapters/chapter3}
 \include{chapters/conclusion}
+
+% ── Appendices ───────────────────────────────────────────────────────────
+\appendix
+\include{chapters/appendix}
 
 % ── Bibliography ─────────────────────────────────────────────────────────
 \printbibliography[heading=bibintoc, title={References}]

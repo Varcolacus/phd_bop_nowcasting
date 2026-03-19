@@ -1,0 +1,211 @@
+% ===========================================================================
+%  APPENDIX
+% ===========================================================================
+\chapter{Data Dictionary and Model Parameters}
+\label{app:data_params}
+
+
+% ===================================================================
+\section{Complete Variable Dictionary}
+\label{app:data_dict}
+
+Table~\ref{tab:app_variables} lists all variables used across the three chapters, including source, frequency, transformation, and coverage.
+
+\begin{table}[htbp]
+\centering
+\caption{Complete variable dictionary}
+\label{tab:app_variables}
+\small
+\begin{tabular}{@{} l l l l l @{}}
+\toprule
+{Variable} & {Source} & {Freq.} & {Transform} & {Coverage} \\
+\midrule
+\multicolumn{5}{@{}l}{\emph{Target variables}} \\
+\addlinespace
+Current account balance & ECB SDW (BP6) & Q & Level & 2000\,Q1--2022\,Q4 \\
+Goods trade balance & ECB SDW (BP6) & M & Level & 2000\,M1--2022\,M12 \\
+\addlinespace
+\multicolumn{5}{@{}l}{\emph{Conventional macro predictors}} \\
+\addlinespace
+Industrial production & ECB SDW & M & $\Delta\log$ & 2000\,M1--2022\,M12 \\
+Retail sales & Eurostat & M & $\Delta\log$ & 2000\,M1--2022\,M12 \\
+Unemployment rate & ECB SDW & M & $\Delta$ & 2000\,M1--2022\,M12 \\
+Manufacturing PMI & Markit/S\&P & M & Level & 2000\,M1--2022\,M12 \\
+Consumer confidence & Eurostat & M & Level & 2000\,M1--2022\,M12 \\
+Goods exports & ECB SDW & M & $\Delta\log$ & 2000\,M1--2022\,M12 \\
+Goods imports & ECB SDW & M & $\Delta\log$ & 2000\,M1--2022\,M12 \\
+Terms of trade & ECB SDW & M & $\Delta\log$ & 2000\,M1--2022\,M12 \\
+EUR/USD exchange rate & ECB SDW (EXR) & M & $\Delta\log$ & 2000\,M1--2022\,M12 \\
+Euribor 3-month & ECB SDW (FM) & M & $\Delta$ & 2000\,M1--2022\,M12 \\
+EURO STOXX 50 returns & ECB SDW & M & Returns & 2000\,M1--2022\,M12 \\
+HICP inflation & ECB SDW (ICP) & M & Level & 2000\,M1--2022\,M12 \\
+\addlinespace
+\multicolumn{5}{@{}l}{\emph{Alternative data (Chapter~2)}} \\
+\addlinespace
+Baltic Dry Index & FRED & D$\to$M & $\Delta\log$ & 2000\,M1--2022\,M12 \\
+Container Throughput & OECD & M & $\Delta\log$ & 2008\,M1--2022\,M12 \\
+EUR/USD realised vol. & FRED & D$\to$M & Level & 2000\,M1--2022\,M12 \\
+FR--DE 10Y spread & FRED & D$\to$M & Level & 2000\,M1--2022\,M12 \\
+Trade Policy Uncert. & Caldara--Iacoviello & M & $\Delta\log$ & 2000\,M1--2022\,M12 \\
+Google Trends (exports) & Google Trends & W$\to$M & Level & 2004\,M1--2022\,M12 \\
+ECB FinBERT sentiment & ECB press conferences & M & Level & 2008\,M1--2022\,M12 \\
+BdF Business Climate & FRED & M & Level + $\Delta$ & 2000\,M1--2022\,M12 \\
+Nighttime light intensity & VIIRS/DMSP$^*$ & M & $\Delta\log$ & 2008\,M1--2022\,M12 \\
+\bottomrule
+\end{tabular}
+\vspace{0.5em}
+
+\begin{minipage}{\textwidth}
+\footnotesize
+$^*$ Synthetic proxy for pre-2012 data, calibrated on overlap period with industrial production.\\
+D$\to$M = daily aggregated to monthly average.  W$\to$M = weekly aggregated to monthly average.\\
+$\Delta\log$ = first difference of natural logarithm.  $\Delta$ = first difference.
+\end{minipage}
+\end{table}
+
+
+% ===================================================================
+\section{Model Hyperparameters}
+\label{app:hyperparams}
+
+Table~\ref{tab:app_hyperparams} reports the hyperparameter settings for all nine models evaluated in Chapter~1.
+
+\begin{table}[htbp]
+\centering
+\caption{Model hyperparameters}
+\label{tab:app_hyperparams}
+\small
+\begin{tabular}{@{} l p{10cm} @{}}
+\toprule
+{Model} & {Parameters} \\
+\midrule
+AR(1) & OLS, 1 lag. \\
+\addlinespace
+AR(4) & OLS, 4 lags. \\
+\addlinespace
+DFM & $k = 2$ principal components extracted via PCA from standardised predictor matrix.  Linear forecasting equation estimated by OLS. \\
+\addlinespace
+Bridge & Quarterly target regressed on quarterly average of best monthly predictor (selected by in-sample $R^2$).  OLS estimation. \\
+\addlinespace
+Ridge & $\ell_2$ penalty, $\alpha$ selected by leave-one-out cross-validation from $[10^{-3}, 10^{5}]$ (100 values, log-spaced).  Features standardised (zero mean, unit variance). \\
+\addlinespace
+Gradient Boosting & \texttt{n\_estimators}$= 100$, \texttt{max\_depth}$= 3$, \texttt{learning\_rate}$= 0.05$, \texttt{subsample}$= 0.8$, \texttt{min\_samples\_leaf}$= 5$.  Early stopping with patience 10. \\
+\addlinespace
+XGBoost & \texttt{n\_estimators}$= 100$, \texttt{max\_depth}$= 3$, \texttt{learning\_rate}$= 0.05$, \texttt{colsample\_bytree}$= 0.8$, \texttt{reg\_lambda}$= 1.0$, \texttt{subsample}$= 0.8$.  Early stopping. \\
+\addlinespace
+LSTM & 2 layers, 32 hidden units/layer, lookback $= 6$, dropout $= 0.1$, weight decay $= 10^{-4}$.  Adam optimiser (lr $= 0.001$).  100 epochs max, early stopping (patience 15).  PyTorch implementation. \\
+\addlinespace
+GRU & 2 layers, 32 hidden units/layer, lookback $= 6$, dropout $= 0.1$, weight decay $= 10^{-4}$.  Adam optimiser (lr $= 0.001$).  100 epochs max, early stopping (patience 15).  Replaces LSTM's 3 gates with 2 (reset, update). \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+% ===================================================================
+\section{Bootstrap Details}
+\label{app:bootstrap}
+
+\subsection{Block Bootstrap Procedure}
+
+The block bootstrap \citep{kunsch1989jackknife} is used throughout to compute confidence intervals for RMSE ratios.  The procedure is as follows:
+
+\begin{enumerate}
+  \item Let $\{e_{1,t}, e_{2,t}\}_{t=1}^{T}$ be the forecast error sequences for two competing models over the $T$-period evaluation window.
+  \item Choose block length $b$ (4 quarters for Chapter~1; 6 months for Chapter~2) to preserve temporal dependence in the error sequence.
+  \item For $r = 1, \ldots, R$ ($R = 1{,}000$ replications):
+    \begin{enumerate}
+      \item Draw $\lceil T/b \rceil$ block starting indices uniformly from $\{1, \ldots, T - b + 1\}$.
+      \item Concatenate the blocks and trim to length $T$, yielding resampled error pairs $\{e_{1,t}^{*(r)}, e_{2,t}^{*(r)}\}$.
+      \item Compute $\text{RMSE}^{*(r)}_k = \sqrt{\frac{1}{T} \sum_t (e_{k,t}^{*(r)})^2}$ for $k = 1, 2$.
+      \item Record the RMSE ratio $\rho^{*(r)} = \text{RMSE}^{*(r)}_2 / \text{RMSE}^{*(r)}_1 - 1$.
+    \end{enumerate}
+  \item Report the 2.5th and 97.5th percentiles of $\{\rho^{*(r)}\}_{r=1}^{R}$ as the 95\% confidence interval.
+\end{enumerate}
+
+\subsection{Block Length Selection}
+
+The block length $b$ is set to match one complete seasonal cycle of the target frequency: $b = 4$ for quarterly data (one year) and $b = 6$ for monthly data (one half-year).  Sensitivity analysis with $b \in \{2, 4, 6, 8\}$ for quarterly data shows that the confidence intervals are robust to this choice: the Ridge improvement remains significant for all block lengths tested.
+
+
+% ===================================================================
+\section{NLP Pipeline Technical Details}
+\label{app:nlp_details}
+
+\subsection{FinBERT Configuration}
+
+We use the \texttt{ProsusAI/finbert} model \citep{araci2019finbert} accessed through the Hugging Face \texttt{transformers} library (version 4.x).  Each text is tokenised with a maximum sequence length of 512 tokens, with truncation enabled.  The model outputs a three-class probability distribution (positive, negative, neutral); we compute a continuous sentiment score as:
+\[
+  s_t = P(\text{positive}) - P(\text{negative})
+\]
+ranging from $-1$ (fully negative) to $+1$ (fully positive).
+
+\subsection{ECB Press Conference Processing}
+
+ECB monetary policy press conference transcripts are sourced from the official ECB website.  For each meeting:
+\begin{enumerate}
+  \item The full transcript is downloaded via HTTP request.
+  \item The text is split into individual sentences using rule-based tokenisation.
+  \item Each sentence is scored by FinBERT.
+  \item Monthly aggregates are computed: (a) mean sentiment, (b) standard deviation (dispersion).
+\end{enumerate}
+
+Our scraper successfully retrieves approximately 13\% of the 148 known ECB press conference dates (2008--2022).  For dates where scraping fails, we apply linear interpolation from the nearest available values.  This limited coverage is acknowledged as a weakness; future work should use the ECB's structured data feeds or direct PDF extraction.
+
+\subsection{Additional Text Sources}
+
+In addition to ECB press conferences, the NLP pipeline processes:
+\begin{itemize}
+  \item \textbf{ECB Financial Stability Reviews} (semi-annual, ~20 documents): Longer analytical documents providing assessment of Euro-area financial conditions.
+  \item \textbf{ECB Working Papers} (abstracts only, filtered by trade/BoP keywords): Research-oriented signal that may lead policy communication.
+\end{itemize}
+
+
+% ===================================================================
+\section{Satellite Data Construction}
+\label{app:satellite}
+
+Nighttime light intensity data from the Visible Infrared Imaging Radiometer Suite (VIIRS) Day/Night Band are available at monthly resolution from April 2012.  For the earlier period (2008--2012), we construct a synthetic proxy using the following procedure:
+
+\begin{enumerate}
+  \item For the overlap period (2012\,M4--2015\,M12), estimate the relationship:
+    \[
+      \text{NTL}_t = \alpha + \beta_1 \text{IP}_t + \beta_2 \text{Elec}_t + \varepsilon_t
+    \]
+    where $\text{IP}_t$ is industrial production and $\text{Elec}_t$ is electricity consumption.
+  \item Use the fitted model to backcast $\widehat{\text{NTL}}_t$ for the pre-VIIRS period.
+  \item Splice the synthetic and observed series at the overlap point.
+\end{enumerate}
+
+This is an acknowledged approximation.  The synthetic proxy captures the low-frequency trend of economic activity but cannot replicate the short-run dynamics specific to nighttime lights (e.g., construction activity, seasonal lighting patterns).
+
+
+% ===================================================================
+\section{Reproducibility}
+\label{app:reproducibility}
+
+\subsection{Software Environment}
+
+All experiments were conducted using:
+\begin{itemize}
+  \item \textbf{Python} 3.11.9 (64-bit, Windows)
+  \item \textbf{Key packages:} pandas 2.x, scikit-learn 1.x, xgboost 2.x, PyTorch 2.x (CUDA), transformers 4.x (Hugging Face), shap 0.x, statsmodels 0.x
+  \item \textbf{Hardware:} NVIDIA GPU with CUDA support (for LSTM/GRU training)
+\end{itemize}
+
+\subsection{Data Access}
+
+All data sources are publicly available without authentication:
+\begin{itemize}
+  \item ECB Statistical Data Warehouse: \url{https://data.ecb.europa.eu}
+  \item FRED (Federal Reserve Economic Data): \url{https://fred.stlouisfed.org}
+  \item Eurostat: \url{https://ec.europa.eu/eurostat}
+  \item Google Trends: \url{https://trends.google.com}
+  \item Caldara--Iacoviello Geopolitical Risk Index: accessed via FRED
+\end{itemize}
+
+\subsection{Code Availability}
+
+The complete codebase, including data download scripts, model implementations, evaluation pipelines, and this LaTeX thesis, is available at:
+\begin{center}
+\url{https://github.com/Varcolacus/phd_bop_nowcasting}
+\end{center}

@@ -17,7 +17,7 @@ Timely monitoring of external sector developments is critical for macroeconomic 
 
 For France, the quarterly current account balance is published by the Banque de France with a delay of approximately three months.  Monthly goods trade data (from Customs) are available sooner but cover only one component.  This publication gap creates a ``nowcasting'' problem: how to produce the best possible estimate of the current or most recent quarter's BoP given the information available today.
 
-A rich literature addresses GDP nowcasting using dynamic factor models \citep{giannone2008nowcasting, stock2002macroeconomic}, bridge equations \citep{baffigi2004bridge, foroni2015unrestricted}, and---more recently---machine learning methods \citep{gouletcoulombe2022how, babii2022machine}.  Yet external sector statistics have received little attention.  \citet{ghysels2015macroeconomics} discuss the potential of mixed-frequency methods for BoP data, and \citet{cazorzi2020forecasting} examine exchange-rate models for current account prediction but do not conduct real-time evaluation.
+A rich literature addresses GDP nowcasting using dynamic factor models \citep{giannone2008nowcasting, stock2002macroeconomic}, bridge equations \citep{baffigi2004bridge, foroni2015unrestricted}, and---more recently---machine learning methods \citep{gouletcoulombe2022how, babii2022machine}.  Yet external sector statistics have received little attention.  \citet{ghysels2015macroeconomics} discuss the potential of mixed-frequency methods for BoP data, and \citet{cazorzi2020making} examine exchange-rate models for current account prediction but do not conduct real-time evaluation.
 
 This chapter fills the gap by providing the first systematic model comparison for BoP nowcasting.  Our contributions are threefold:
 \begin{enumerate}
@@ -111,7 +111,7 @@ We use an \emph{expanding-window} evaluation design:
 \begin{enumerate}
   \item Fix a minimum training window of 40~quarters (10~years): 2000\,Q1--2009\,Q4.
   \item For each evaluation quarter $t$ from 2010\,Q1 to 2022\,Q4:
-    \begin{enumerate}[label=(\alph*)]
+    \begin{enumerate}
       \item Estimate the model using data from 2000\,Q1 to $t-1$.
       \item Produce a one-step-ahead forecast $\hat{y}_t$.
     \end{enumerate}
@@ -135,7 +135,7 @@ Table~\ref{tab:ch1_quarterly} presents the main results for quarterly current ac
 \centering
 \caption{Model comparison: Quarterly current account balance (France, 2010--2022)}
 \label{tab:ch1_quarterly}
-\begin{tabular}{@{} l S[table-format=4.0] S[table-format=+3.1] S[table-format=1.3] c @{}}
+\begin{tabular}{@{} l r r r c @{}}
 \toprule
 {Model} & {RMSE} & {\% vs.\ AR(1)} & {DM $p$-value} & {Direction Acc.} \\
 \midrule
@@ -152,6 +152,15 @@ GRU                & 8995 &  +0.9 & 0.904 & 48\% \\
 \end{tabular}
 \end{table}
 
+Figure~\ref{fig:ch1_model_comparison} visualises the RMSE comparison across models.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.85\textwidth]{figures/ch1_model_comparison}
+\caption{RMSE comparison across nine models for quarterly current account nowcasting (France, 2010--2022).  Lower bars indicate better performance.  Ridge regression achieves the lowest RMSE.}
+\label{fig:ch1_model_comparison}
+\end{figure}
+
 Several findings emerge.
 
 \emph{First}, Ridge regression dominates all alternatives, reducing RMSE by~26.3\% relative to AR(1).  The \citet{diebold1995comparing} test confirms that this improvement is statistically significant at the~1\% level ($p = 0.002$).  Ridge also achieves the highest directional accuracy (78\%), meaning it correctly predicts whether the current account deteriorates or improves in more than three quarters of the evaluation periods.
@@ -161,6 +170,22 @@ Several findings emerge.
 \emph{Third}, nonlinear ML methods improve on the AR(1) benchmark but are dominated by Ridge.  Gradient Boosting ($-16.8\%$) and XGBoost ($-14.6\%$) both deliver statistically significant gains.  Their underperformance relative to Ridge is consistent with the bias--variance tradeoff: with only~52 evaluation points drawn from a 92-quarter sample, the variance reduction from $\ell_2$ regularisation dominates the potential nonlinear fit gains from tree ensembles.  This finding corroborates \citet{gouletcoulombe2022how}.
 
 \emph{Fourth}, LSTM fails entirely, producing an RMSE~1\% \emph{larger} than AR(1).  With only 92 quarterly observations and 14~features, the network overfits despite regularisation via early stopping.  This failure provides a useful cautionary datum for the literature.
+
+Figure~\ref{fig:ch1_forecast} presents the time-series of actual vs.\ predicted current account balances for selected models, and Figure~\ref{fig:ch1_cumsse} shows the cumulative squared forecast errors over the evaluation window.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.9\textwidth]{figures/ch1_forecast_comparison}
+\caption{Actual vs.\ predicted quarterly current account balance (France, 2010--2022) for AR(1), Ridge, and XGBoost.}
+\label{fig:ch1_forecast}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.85\textwidth]{figures/ch1_cumulative_sse}
+\caption{Cumulative squared forecast errors over the evaluation window.  Ridge accumulates the least error; LSTM the most.}
+\label{fig:ch1_cumsse}
+\end{figure}
 
 \subsection{Monthly Goods Trade Balance}
 
@@ -174,7 +199,7 @@ To provide uncertainty quantification for the RMSE improvements reported above, 
 \centering
 \caption{Bootstrap 95\% confidence intervals for RMSE improvement vs.\ AR(1)}
 \label{tab:ch1_bootstrap}
-\begin{tabular}{@{} l S[table-format=+3.1] c @{}}
+\begin{tabular}{@{} l r c @{}}
 \toprule
 {Model} & {\% vs.\ AR(1)} & {95\% CI} \\
 \midrule
@@ -189,6 +214,15 @@ GRU                &  +0.9 & $[-4.2, +3.7]$ \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+Figure~\ref{fig:ch1_errors} shows the distribution of forecast errors across models.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.85\textwidth]{figures/ch1_error_distributions}
+\caption{Distribution of one-step-ahead forecast errors by model.  Ridge (green) is most tightly centred on zero.}
+\label{fig:ch1_errors}
+\end{figure}
 
 The Ridge improvement is tightly estimated: even in the worst-case bootstrap draw, Ridge reduces RMSE by at least~16.4\%.  The DFM interval is entirely below zero ($[-15.1, -1.0]$), suggesting a genuine, if modest, improvement.  The Bridge interval spans zero ($[-39.5, +14.0]$), reflecting its higher variability across subsamples.  Both LSTM and GRU intervals straddle zero, confirming that recurrent networks cannot be distinguished from the benchmark in this setting.
 
