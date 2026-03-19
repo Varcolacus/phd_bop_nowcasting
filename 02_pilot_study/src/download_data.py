@@ -28,6 +28,9 @@ from pathlib import Path
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
+# Some institutional proxies / corporate firewalls replace upstream TLS
+# certificates, causing SSL verification failures against the ECB SDW API.
+# Disable verification so the pipeline works in those environments.
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 VERIFY_SSL = False
 

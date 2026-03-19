@@ -29,7 +29,7 @@ phd/
       monthly/              # Monthly frequency results
       chapter2/             # Ablation study results & SHAP decomposition
       chapter3/             # Crisis eval, cross-country, Taylor-rule results
-  03_chapters/              # Working paper drafts
+  03_chapters/              # Historical working-paper drafts (superseded by 04_latex/chapters/)
     chapter2_alternative_data.txt      # Ch.2: Alternative data for BoP
     chapter3_policy_implications.txt   # Ch.3: Policy implications
 ```
