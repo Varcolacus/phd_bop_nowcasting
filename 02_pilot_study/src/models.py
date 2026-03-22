@@ -19,11 +19,14 @@ Author: PhD Pilot Study
 Date: March 2026
 """
 
+import logging
 import pandas as pd
 import numpy as np
 import warnings
 from pathlib import Path
 from dataclasses import dataclass, field
+
+logger = logging.getLogger(__name__)
 
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.linear_model import LinearRegression, LassoCV
@@ -110,7 +113,8 @@ def ar_forecast(y_train, order=1):
         last_obs = np.array([y[-(i + 1)] for i in range(order)])
         x_new = np.concatenate([[1.0], last_obs])
         return model.predict(x_new)[0]
-    except Exception:
+    except Exception as e:
+        logger.warning("ar_forecast failed: %s", e)
         return np.nan
 
 
@@ -128,7 +132,8 @@ def ols_forecast(X_train, y_train, X_test_row):
         model = RidgeCV(alphas=[0.01, 0.1, 1.0, 10.0, 100.0])
         model.fit(X_train, y_train)
         return model.predict(X_test_row.reshape(1, -1))[0]
-    except Exception:
+    except Exception as e:
+        logger.warning("ols_forecast (Ridge) failed: %s", e)
         return np.nan
 
 
@@ -149,7 +154,8 @@ def gradient_boosting_forecast(X_train, y_train, X_test_row):
     try:
         model.fit(X_train, y_train)
         return model.predict(X_test_row.reshape(1, -1))[0]
-    except Exception:
+    except Exception as e:
+        logger.warning("gradient_boosting_forecast failed: %s", e)
         return np.nan
 
 
@@ -174,7 +180,8 @@ def xgboost_forecast(X_train, y_train, X_test_row):
     try:
         model.fit(X_train, y_train)
         return model.predict(X_test_row.reshape(1, -1))[0]
-    except Exception:
+    except Exception as e:
+        logger.warning("xgboost_forecast failed: %s", e)
         return np.nan
 
 
@@ -247,7 +254,8 @@ def lstm_forecast(X_train, y_train, X_test_row, lookback=4, hidden_size=32,
             x_new = np.vstack([X_train[-(lookback - 1):], X_test_row.reshape(1, -1)])
             x_new = torch.from_numpy(x_new.astype(np.float32)).unsqueeze(0)
             return model(x_new).item()
-    except Exception:
+    except Exception as e:
+        logger.warning("lstm_forecast failed: %s", e)
         return np.nan
 
 
@@ -313,7 +321,8 @@ def gru_forecast(X_train, y_train, X_test_row, lookback=4, hidden_size=32,
             x_new = np.vstack([X_train[-(lookback - 1):], X_test_row.reshape(1, -1)])
             x_new = torch.from_numpy(x_new.astype(np.float32)).unsqueeze(0)
             return model(x_new).item()
-    except Exception:
+    except Exception as e:
+        logger.warning("gru_forecast failed: %s", e)
         return np.nan
 
 
@@ -345,7 +354,8 @@ def dfm_forecast(X_train, y_train, X_test_row, n_factors=2):
 
         model = sm.OLS(y_train, F_train_c).fit()
         return model.predict(F_test_c)[0]
-    except Exception:
+    except Exception as e:
+        logger.warning("dfm_forecast failed: %s", e)
         return np.nan
 
 
@@ -385,7 +395,8 @@ def bridge_forecast(X_train, y_train, X_test_row, max_vars=5):
                     if m.bic < best_new_bic:
                         best_new_bic = m.bic
                         best_new_var = var
-                except Exception:
+                except Exception as e:
+                    logger.debug("bridge variable selection skip: %s", e)
                     continue
 
             if best_new_var is not None and best_new_bic < best_bic:
@@ -404,7 +415,8 @@ def bridge_forecast(X_train, y_train, X_test_row, max_vars=5):
 
         model = sm.OLS(y_train, X_sel_train).fit()
         return model.predict(X_sel_test)[0]
-    except Exception:
+    except Exception as e:
+        logger.warning("bridge_forecast failed: %s", e)
         return np.nan
 
 

@@ -18,12 +18,15 @@ Date: March 2026
 
 import os
 import json
+import logging
 import urllib3
 import requests
 import pandas as pd
 import numpy as np
 from io import StringIO
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -32,7 +35,7 @@ from pathlib import Path
 # certificates, causing SSL verification failures against the ECB SDW API.
 # Override via environment variable NOWCAST_VERIFY_SSL=false if needed.
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-VERIFY_SSL = os.getenv('NOWCAST_VERIFY_SSL', 'false').lower() == 'true'
+VERIFY_SSL = os.getenv('NOWCAST_VERIFY_SSL', 'true').lower() == 'true'
 
 DATA_DIR = Path(__file__).parent.parent / "data"
 DATA_DIR.mkdir(exist_ok=True)
@@ -85,6 +88,7 @@ def ecb_download_series(dataset, series_key, start_period="1999"):
         resp.raise_for_status()
         return resp.text
     except requests.exceptions.RequestException as e:
+        logger.warning("ECB download failed for %s/%s: %s", dataset, series_key, e)
         return None
 
 

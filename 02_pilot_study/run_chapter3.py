@@ -22,7 +22,10 @@ Date: March 2026
 
 import sys
 import io
+import logging
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 # Fix Windows cp1252 terminal encoding for Unicode output
 if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
@@ -867,7 +870,8 @@ def run_part_c(df_fr, models_fr):
         from statsmodels.tsa.filters.hp_filter import hpfilter
         cycle, trend = hpfilter(df_tr["trade_goods"].values, lamb=129600)  # monthly
         df_tr["output_gap"] = cycle / (np.abs(trend) + 1) * 100
-    except Exception:
+    except Exception as e:
+        logger.warning("HP filter unavailable, using rolling-mean detrending: %s", e)
         # Simple detrending fallback
         trend = df_tr["trade_goods"].rolling(24, min_periods=12, center=True).mean()
         df_tr["output_gap"] = (df_tr["trade_goods"] - trend) / (trend.abs() + 1) * 100

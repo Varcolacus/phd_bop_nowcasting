@@ -14,11 +14,21 @@ Pipeline:
   3. Score sentiment using FinBERT
   4. Aggregate to monthly frequency
 
+NOTE — URL Pattern Fragility:
+  The ECB web scraper uses manually enumerated URL patterns for both the
+  legacy (/press/pressconf/) and current (/press/press_conference/) ECB
+  website structures.  If the ECB restructures its website or changes URL
+  conventions, the scraper will require updating.  No official ECB API for
+  press conference transcripts exists as of 2026.  The pipeline degrades
+  gracefully: if too few texts are retrieved, it falls back to synthetic
+  sentiment calibrated on crisis timing.
+
 Author: PhD Pilot Study
 Date: March 2026
 """
 
 import os
+import logging
 import warnings
 import requests
 import numpy as np
@@ -26,6 +36,7 @@ import pandas as pd
 from pathlib import Path
 from datetime import datetime
 
+logger = logging.getLogger(__name__)
 warnings.filterwarnings("ignore")
 
 # SSL verification: override via NOWCAST_VERIFY_SSL=true if not behind a proxy
@@ -175,7 +186,8 @@ def scrape_ecb_statement(url):
         resp.raise_for_status()
         soup = BeautifulSoup(resp.text, "lxml")
         return _extract_ecb_text(soup)
-    except Exception:
+    except Exception as e:
+        logger.warning("scrape_ecb_statement failed for %s: %s", url, e)
         return ""
 
 
@@ -253,9 +265,8 @@ def score_sentiment(paragraphs):
                 scores.append(-confidence)
             else:
                 scores.append(0.0)
-        except Exception:
-            scores.append(0.0)
-
+        except Exception as e:
+            logger.warning("FinBERT scoring failed for paragraph: %s", e)
     return scores
 
 
@@ -301,6 +312,7 @@ def _extract_text_from_pdf(pdf_bytes):
             pages_text = [page.extract_text() or "" for page in pdf.pages]
         return "\n".join(pages_text)
     except ImportError:
+        logger.debug("pdfplumber not available, trying PyPDF2")
         pass
 
     try:
@@ -310,6 +322,7 @@ def _extract_text_from_pdf(pdf_bytes):
         pages_text = [page.extract_text() or "" for page in reader.pages]
         return "\n".join(pages_text)
     except ImportError:
+        logger.debug("PyPDF2 not available, cannot extract PDF text")
         pass
 
     return ""
@@ -380,8 +393,8 @@ def run_nlp_pipeline(start_year=2008, end_year=2022):
                             f"ds{yyyymmdd}" in href or f"sp{yy}{mm}{dd}" in href):
                             full_url = href if href.startswith("http") else f"https://www.ecb.europa.eu{href}"
                             discovered_urls[date_str] = full_url
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Main listing scrape failed for %s: %s", listing_url, e)
 
     # Year-specific archive pages
     for yr in range(start_year, end_year + 1):
@@ -430,7 +443,8 @@ def run_nlp_pipeline(start_year=2008, end_year=2022):
                                         discovered_urls[date_str] = full_url
                 else:
                     consecutive_failures += 1
-            except Exception:
+            except Exception as e:
+                logger.debug("Archive scrape failed for year %d: %s", yr, e)
                 consecutive_failures += 1
 
     if discovered_urls:
@@ -453,8 +467,8 @@ def run_nlp_pipeline(start_year=2008, end_year=2022):
                         if f"{yy}{mm}{dd}" in href and date_str not in discovered_urls:
                             full_url = href if href.startswith("http") else f"https://www.ecb.europa.eu{href}"
                             discovered_urls[date_str] = full_url
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("ECB press release search failed: %s", e)
 
     consecutive_url_failures = 0
     for date, date_str in statement_dates:
@@ -525,7 +539,8 @@ def run_nlp_pipeline(start_year=2008, end_year=2022):
                                 fetched_texts.append((date, text))
                                 found_text = True
                                 break
-            except Exception:
+            except Exception as e:
+                logger.debug("URL fetch failed for %s: %s", date_str, e)
                 continue
 
         if found_text:
@@ -713,8 +728,8 @@ def download_bdf_business_survey(start_year=2008, end_year=2022):
                     val_col = col
             if "date_col" in dir() and "val_col" in dir():
                 print(f"    [INFO] BdF Stat API returned {len(raw)} rows")
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("BdF Stat API download failed: %s", e)
 
     # --- Construct BdF sentiment from BCI + derived features ---
     if bci_df is not None and len(bci_df) > 12:
