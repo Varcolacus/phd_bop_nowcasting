@@ -36,18 +36,21 @@ phd/
 
 ## Pilot Study Results (Real ECB Data)
 
-91 quarterly observations (2000-Q1 to 2022-Q3), expanding window out-of-sample evaluation:
+92 quarterly observations (2000-Q1 to 2022-Q4), expanding window out-of-sample evaluation:
 
 | Model | RMSE | vs AR(1) | Statistically Significant |
 |---|---|---|---|
 | AR(1) | 8,913 | baseline | -- |
 | AR(4) | 7,512 | -15.7% | No |
-| Ridge | **6,538** | **-26.6%** | **Yes** |
-| GradientBoosting | 7,562 | -15.1% | No |
-| XGBoost | 7,671 | -13.9% | No |
-| LSTM | 8,999 | +1.0% | No |
+| DFM | 7,229 | -18.9% | Yes (p=0.049) |
+| Bridge | 7,685 | -13.8% | No |
+| Ridge | **6,567** | **-26.3%** | **Yes (p=0.013)** |
+| GradientBoosting | 7,344 | -17.6% | Marginal (p=0.062) |
+| XGBoost | 7,476 | -16.1% | Marginal (p=0.082) |
+| LSTM | 9,004 | +1.0% | No |
+| GRU | 9,000 | +1.0% | No |
 
-After fixing feature leakage (removed BoP sub-components and contemporaneous target transforms from features), Ridge is the best-performing model, the only one statistically significant vs AR(1) via Diebold-Mariano test.
+Ridge regression is the best-performing model and the only one statistically significant at the 5% level vs AR(1) via Diebold-Mariano test.
 
 **SHAP top features:** `bop_ca_lag4`, `bop_ca_lag1`, `hicp`, `gdp_yoy`, `gdp`
 

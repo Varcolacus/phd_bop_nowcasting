@@ -83,17 +83,17 @@ AR(1) & OLS, 1 lag. \\
 \addlinespace
 AR(4) & OLS, 4 lags. \\
 \addlinespace
-DFM & $k = 2$ principal components extracted via PCA from standardised predictor matrix.  Linear forecasting equation estimated by OLS. \\
+DFM & Number of factors $k$ selected automatically at each expanding-window step using the $IC_{p2}$ criterion of \citet{bai2002determining}, searching $k \in \{1,\ldots,8\}$.  Principal components extracted via PCA from standardised predictor matrix; linear forecasting equation estimated by OLS. \\
 \addlinespace
-Bridge & Quarterly target regressed on quarterly average of best monthly predictor (selected by in-sample $R^2$).  OLS estimation. \\
+Bridge & BIC-based stepwise predictor selection (forward entry from all available monthly indicators).  Quarterly target regressed on quarterly average of selected predictor(s).  OLS estimation. \\
 \addlinespace
 Ridge & $\ell_2$ penalty, $\alpha$ selected by efficient leave-one-out cross-validation from $\{0.01, 0.1, 1, 10, 100\}$.  Features standardised (zero mean, unit variance). \\
 \addlinespace
-Gradient Boosting & \texttt{n\_estimators}$= 100$, \texttt{max\_depth}$= 3$, \texttt{learning\_rate}$= 0.05$, \texttt{min\_samples\_leaf}$= 5$. \\
+Gradient Boosting & Hyperparameters selected by 3-fold \texttt{TimeSeriesSplit} cross-validation at each expanding-window step over a grid: \texttt{learning\_rate} $\in \{0.05, 0.1\}$, \texttt{max\_depth} $\in \{3, 5\}$, \texttt{n\_estimators} $\in \{100, 200\}$.  \texttt{min\_samples\_leaf}$= 5$. \\
 \addlinespace
-XGBoost & \texttt{n\_estimators}$= 100$, \texttt{max\_depth}$= 3$, \texttt{learning\_rate}$= 0.1$, \texttt{colsample\_bytree}$= 0.8$, \texttt{reg\_alpha}$= 0.1$, \texttt{reg\_lambda}$= 1.0$, \texttt{min\_child\_weight}$= 5$. \\
+XGBoost & Same 3-fold TSCV protocol as GB with grid: \texttt{learning\_rate} $\in \{0.05, 0.1\}$, \texttt{max\_depth} $\in \{3, 5\}$, \texttt{reg\_lambda} $\in \{0, 1\}$.  Fixed: \texttt{n\_estimators}$= 100$, \texttt{colsample\_bytree}$= 0.8$, \texttt{min\_child\_weight}$= 5$ \citep{chen2016xgboost}. \\
 \addlinespace
-LSTM & 1 layer, 32 hidden units, lookback $= 4$.  Adam optimiser (lr $= 0.005$).  100 epochs max, early stopping (patience 15).  PyTorch implementation. \\
+LSTM & 1 layer, 32 hidden units, lookback $= 4$, dropout $= 0.2$ between recurrent and output layers.  Adam optimiser (lr $= 0.005$).  Validation set (last 20\% of training window) used for early stopping (patience 15) and \texttt{ReduceLROnPlateau} scheduler (factor~0.5, patience~5).  Best validation-loss state restored.  100 epochs max.  PyTorch implementation. \\
 \addlinespace
 GRU & 2 layers, 32 hidden units/layer, lookback $= 4$, dropout $= 0.1$, weight decay $= 10^{-4}$.  Adam optimiser (lr $= 0.005$).  100 epochs max, early stopping (patience 15).  Replaces LSTM's 3 gates with 2 (reset, update). \\
 \bottomrule
@@ -188,7 +188,7 @@ This is an acknowledged approximation.  The synthetic proxy captures the low-fre
 All experiments were conducted using:
 \begin{itemize}
   \item \textbf{Python} 3.11.9 (64-bit, Windows)
-  \item \textbf{Key packages:} pandas 2.x, scikit-learn 1.x, xgboost 2.x, PyTorch 2.x (CUDA), transformers 4.x (Hugging Face), shap 0.x, statsmodels 0.x
+  \item \textbf{Key packages:} pandas 3.x, scikit-learn 1.x, xgboost 3.x, PyTorch 2.x (CUDA), transformers 5.x (Hugging Face), shap 0.x, statsmodels 0.x, scipy 1.x
   \item \textbf{Hardware:} NVIDIA GPU with CUDA support (for LSTM/GRU training)
 \end{itemize}
 
