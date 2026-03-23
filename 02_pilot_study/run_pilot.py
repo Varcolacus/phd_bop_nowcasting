@@ -25,16 +25,20 @@ sys.path.insert(0, str(src_dir))
 
 def run_realtime_info_test():
     """
-    Simulated real-time information flow test.
+    Simulated real-time information flow test with a stylised
+    release calendar.
 
-    Mimics publication lags: at each evaluation quarter, produces forecasts
-    at three information horizons:
-      - Early: features lagged by 2 extra months (only M1 of quarter available)
-      - Mid:   features lagged by 1 extra month  (M1+M2 available)
-      - Late:  all within-quarter features available
+    At each evaluation quarter, produces forecasts at three horizons
+    reflecting when different data categories typically become available:
 
-    This tests whether Ridge accuracy improves monotonically as more
-    within-quarter data arrive (news content).
+      - Early (T+30 d):  only financial/survey variables available
+        (released daily/monthly with no lag).
+      - Mid   (T+60 d):  + hard activity data (IP, retail, trade with
+        ~45-day publication lag).
+      - Late  (T+85 d):  full information set (all features available).
+
+    Features are grouped by typical publication lag rather than by
+    arbitrary column position, giving a more realistic ragged-edge test.
     """
     import numpy as np
     import pandas as pd
@@ -65,6 +69,24 @@ def run_realtime_info_test():
                     and df[c].dtype in [np.float64, np.int64, float]
                     and not any(c.startswith(prefix) for prefix in bop_leakage)]
 
+    # ---- Stylised release-calendar grouping ----
+    # Early: financial & survey (available <30 days after quarter-end)
+    early_kw = ["eurusd", "stoxx", "euribor", "interest", "pmi",
+                "confidence", "bci", "google", "bdi", "sentiment"]
+    # Mid: hard activity (available ~45-60 days)
+    # Late: everything else (trade, GDP, satellite, lagged BoP)
+    early_idx = [i for i, c in enumerate(feature_cols)
+                 if any(k in c.lower() for k in early_kw)]
+    mid_idx = list(range(len(feature_cols)))   # all features
+    late_idx = list(range(len(feature_cols)))   # identical to mid (full info)
+
+    # Mask indices: Early = only early_idx available, rest → 0
+    mask_early = set(range(len(feature_cols))) - set(early_idx)
+    # Mid: only late-arriving features masked (trade values, GDP, satellite)
+    late_kw = ["gdp", "satellite", "nightlight", "lag"]
+    mask_mid = {i for i, c in enumerate(feature_cols)
+                if any(k in c.lower() for k in late_kw)}
+
     cols_needed = [target_col] + feature_cols
     df_clean = df[["date"] + cols_needed].dropna().reset_index(drop=True)
     y = df_clean[target_col].values
@@ -88,28 +110,27 @@ def run_realtime_info_test():
         X_train_scaled = scaler.fit_transform(X_train)
         X_test_scaled = scaler.transform(X_test.reshape(1, -1)).flatten()
 
-        # Late: full information (standard forecast)
         model = RidgeCV(alphas=[0.01, 0.1, 1.0, 10.0, 100.0])
         model.fit(X_train_scaled, y_train)
+
+        # Late: full information
         pred_late = model.predict(X_test_scaled.reshape(1, -1))[0]
         horizon_results["late"].append((y_test, pred_late))
 
-        # Mid: replace last 1/3 of features with their training-period mean
-        n_feat = len(feature_cols)
-        n_mask = max(1, n_feat // 3)
+        # Mid: mask late-arriving features
         X_mid = X_test_scaled.copy()
-        X_mid[-n_mask:] = 0.0  # Scaled mean is 0
+        for idx in mask_mid:
+            X_mid[idx] = 0.0
         pred_mid = model.predict(X_mid.reshape(1, -1))[0]
         horizon_results["mid"].append((y_test, pred_mid))
 
-        # Early: replace last 2/3 of features with mean
-        n_mask2 = max(1, 2 * n_feat // 3)
+        # Early: only financial/survey features
         X_early = X_test_scaled.copy()
-        X_early[-n_mask2:] = 0.0
+        for idx in mask_early:
+            X_early[idx] = 0.0
         pred_early = model.predict(X_early.reshape(1, -1))[0]
         horizon_results["early"].append((y_test, pred_early))
 
-    # Compute RMSE for each horizon
     rows = []
     for horizon, results in horizon_results.items():
         acts = np.array([r[0] for r in results])
@@ -122,10 +143,9 @@ def run_realtime_info_test():
     rt_df.to_csv(OUTPUT_DIR / "realtime_info_test.csv", index=False)
     print(f"  Saved realtime_info_test.csv")
 
-    # Check monotonic improvement
     rmses = [r["rmse"] for r in rows]
     if rmses[0] >= rmses[1] >= rmses[2]:
-        print("  [OK] RMSE improves monotonically: early >= mid >= late (news content confirmed)")
+        print("  [OK] RMSE improves monotonically: early >= mid >= late")
     else:
         print("  [INFO] Non-monotonic pattern (may indicate noise)")
 
@@ -206,6 +226,35 @@ def _run_enhanced_tests(df_raw, OUTPUT_DIR,
     pd.DataFrame(enhanced_rows).to_csv(OUTPUT_DIR / "enhanced_tests.csv", index=False)
     print(f"  Saved enhanced_tests.csv")
 
+    # ----- Holm-Bonferroni Multiple Testing Correction -----
+    from src.models import holm_bonferroni as _hb
+    if enhanced_rows:
+        dm_ps_raw = [r["dm_p"] for r in enhanced_rows if not np.isnan(r["dm_p"])]
+        cw_ps_raw = [r["cw_p"] for r in enhanced_rows if not np.isnan(r["cw_p"])]
+        if dm_ps_raw:
+            dm_adj = _hb(dm_ps_raw)
+            cw_adj = _hb(cw_ps_raw) if cw_ps_raw else []
+            print(f"\n  Holm-Bonferroni adjusted p-values ({len(dm_ps_raw)} comparisons):")
+            print(f"  {'Model':<20} {'DM raw':>8} {'DM adj':>8} {'CW raw':>8} {'CW adj':>8}")
+            print("  " + "-" * 50)
+            j_dm, j_cw = 0, 0
+            for r in enhanced_rows:
+                dm_r = f"{r['dm_p']:.4f}" if not np.isnan(r["dm_p"]) else "N/A"
+                cw_r = f"{r['cw_p']:.4f}" if not np.isnan(r["cw_p"]) else "N/A"
+                dm_a = f"{dm_adj[j_dm]:.4f}" if not np.isnan(r["dm_p"]) else "N/A"
+                cw_a = f"{cw_adj[j_cw]:.4f}" if cw_ps_raw and not np.isnan(r["cw_p"]) else "N/A"
+                print(f"  {r['model']:<20} {dm_r:>8} {dm_a:>8} {cw_r:>8} {cw_a:>8}")
+                if not np.isnan(r["dm_p"]):
+                    r["dm_p_adj"] = dm_adj[j_dm]
+                    j_dm += 1
+                if not np.isnan(r["cw_p"]):
+                    r["cw_p_adj"] = cw_adj[j_cw] if cw_ps_raw else np.nan
+                    j_cw += 1
+            # Re-save with adjusted p-values
+            pd.DataFrame(enhanced_rows).to_csv(
+                OUTPUT_DIR / "enhanced_tests.csv", index=False)
+            print(f"  Updated enhanced_tests.csv with adjusted p-values")
+
     # ----- Forecast Combination -----
     print("\n  Forecast Combination (inverse-RMSE weights):")
 
@@ -275,6 +324,33 @@ def main():
     if df.empty:
         print("\n[ERROR] Data pipeline failed. Cannot continue.")
         return
+
+    # -- Step 1b: Unit-Root Diagnostics --
+    print("\n\n" + "#" * 60)
+    print("  STEP 1b: UNIT-ROOT DIAGNOSTICS (ADF + KPSS)")
+    print("#" * 60)
+
+    try:
+        from src.models import unit_root_tests, OUTPUT_DIR as _OD
+        import pandas as _pd_ur
+        _urt_cols = [c for c in df.columns
+                     if c != "date" and df[c].dtype in [float, 'float64']]
+        urt_df = unit_root_tests(df, _urt_cols)
+        if not urt_df.empty:
+            urt_df.to_csv(_OD / "unit_root_tests.csv", index=False)
+            print(f"  Saved unit_root_tests.csv ({len(urt_df)} series)")
+            n_stat = (urt_df["conclusion"] == "Stationary").sum()
+            n_ur = (urt_df["conclusion"] == "Unit root").sum()
+            n_inc = (urt_df["conclusion"] == "Inconclusive").sum()
+            print(f"  Stationary: {n_stat}, Unit root: {n_ur}, "
+                  f"Inconclusive: {n_inc}")
+            for _, r in urt_df.iterrows():
+                tag = "✓" if r["conclusion"] == "Stationary" else (
+                    "✗" if r["conclusion"] == "Unit root" else "?")
+                print(f"    {tag} {r['variable']:<25} ADF p={r['adf_pvalue']:.3f}  "
+                      f"KPSS p={r['kpss_pvalue']:.3f}  → {r['conclusion']}")
+    except Exception as e:
+        print(f"  [WARN] Unit-root tests failed: {e}")
 
     # -- Step 2: Run Models --
     print("\n\n" + "#" * 60)

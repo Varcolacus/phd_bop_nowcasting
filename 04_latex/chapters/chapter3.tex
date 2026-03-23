@@ -13,7 +13,7 @@ This chapter bridges the gap between statistical accuracy and policy relevance. 
 \section{Introduction}
 \label{sec:ch3_intro}
 
-Chapters~1 and~2 established two empirical results: Ridge regression reduces BoP nowcast RMSE by~26\% relative to an autoregressive benchmark (Chapter~1), and incorporating alternative data---particularly text/sentiment indicators---provides an additional~6.1\% improvement (Chapter~2).  But do these accuracy gains matter?
+Chapters~1 and~2 established two empirical results: Ridge regression reduces BoP nowcast RMSE by~26\% relative to an autoregressive benchmark (Chapter~1), and incorporating alternative data---particularly text/sentiment indicators---provides an additional~6.4\% improvement (Chapter~2).  But do these accuracy gains matter?
 
 Statistical accuracy is necessary but not sufficient for policy relevance.  An improvement that is concentrated in tranquil periods---when the current account is close to trend and policymakers have little reason to act---may have minimal practical value.  Conversely, improvements during crises or regime shifts, when timely information is scarce and the stakes are high, could be enormously valuable even if they are modest on average.
 
@@ -66,7 +66,7 @@ Table~\ref{tab:ch3_crisis_results} presents crisis-specific performance.
 \midrule
 AR(1)   & 1{,}476 & {---}  & 2{,}921 & {---}   & 2{,}911 & {---}  \\
 Ridge   & 1{,}447 & $-$2.0 & 2{,}404 & $-$17.7 & 2{,}335 & $-$19.8 \\
-XGBoost & 1{,}573 & $+$6.6 & 2{,}159 & $-$26.1 & 2{,}527 & $-$13.2 \\
+XGBoost & 1{,}572 & $+$6.5 & 2{,}126 & $-$27.2 & 2{,}504 & $-$14.0 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -82,7 +82,7 @@ Three patterns emerge.
 
 \emph{First}, Ridge maintains substantial accuracy gains during COVID ($-17.7\%$) and the energy shock ($-19.8\%$), the two crises with the sharpest BoP movements.  During the GFC, the improvement is more modest ($-2.0\%$), reflecting the small training sample at that point (40~quarters).
 
-\emph{Second}, XGBoost achieves the largest COVID improvement ($-26.1\%$), suggesting that nonlinear methods can capture abrupt regime shifts when the training sample is sufficiently large\footnote{By 2020, the training window encompasses 80~quarters, more than doubling the GFC-era sample.}.  However, XGBoost's GFC performance is poor ($+6.6\%$), confirming its unreliability in small samples.
+\emph{Second}, XGBoost achieves the largest COVID improvement ($-27.2\%$), suggesting that nonlinear methods can capture abrupt regime shifts when the training sample is sufficiently large\footnote{By 2020, the training window encompasses 80~quarters, more than doubling the GFC-era sample.}.  However, XGBoost's GFC performance is poor ($+6.5\%$), confirming its unreliability in small samples.
 
 \emph{Third}, the \citet{clark2007approximately} test (Table~\ref{tab:ch3_crisis_cw}) confirms that Ridge significantly outperforms AR(1) during COVID ($p = 0.031$) and the energy shock ($p = 0.015$), with marginal significance during the GFC ($p = 0.079$).  The DM test, by contrast, lacks power at these small episode-level sample sizes ($N = 12$--$24$).
 
@@ -208,6 +208,9 @@ Because the lagged dependent variable $i_{t-1}$ may be endogenous (correlated wi
 
 \paragraph{Prais--Winsten GLS robustness check.}
 The OLS Durbin--Watson statistic of~$0.60$ indicates substantial positive serial correlation in the residuals.  While OLS remains consistent under correct specification, the standard errors are inefficient.  We therefore re-estimate Equation~\eqref{eq:taylor} via feasible GLS using the \citet{prais1954trend} transformation with estimated first-order autocorrelation coefficient $\hat{\rho} = 0.70$.  The GLS Durbin--Watson rises to~$1.87$, indicating that the serial correlation is effectively removed.  Coefficient point estimates remain close to OLS: the maximum absolute difference is~$0.019$ (for $i_{t-1}$: $0.969$ vs.\ $0.983$), while $\hat{\delta}_{\text{GLS}} \approx 0.000$ (vs.\ $-0.008$ under OLS), confirming that the current-account gap coefficient is economically negligible regardless of estimation method.  The near-equivalence of OLS and GLS estimates reassures that serial correlation does not bias the substantive conclusions of this analysis.
+
+\paragraph{Hamilton filter robustness check.}
+The Hodrick--Prescott (HP) filter used to construct the output and CA gaps has been criticised by \citet{hamilton2018why} for generating spurious cyclical dynamics.  As a robustness check, we re-extract the output gap using the \citet{hamilton2018why} regression filter---regressing $y_{t+h}$ on $(y_t, y_{t-1}, y_{t-2}, y_{t-3})$ with $h = 8$ for monthly data---and re-estimate the Taylor rule with this alternative output gap measure.  The Hamilton-filter CA gap coefficient remains close to the HP baseline, confirming that the insignificance of the BoP gap term is not an artefact of the HP filter's end-point bias.
 
 \subsection{Counterfactual Exercise}
 

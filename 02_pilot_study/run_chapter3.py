@@ -1080,6 +1080,62 @@ def run_part_c(df_fr, models_fr):
     except Exception as e:
         print(f"  [WARN] Prais-Winsten GLS failed: {e}")
 
+    # ----- Step 1d: Hamilton (2018) filter robustness -----
+    print("\n  Hamilton (2018) filter robustness (h=8 for monthly data):")
+    try:
+        h_ham = 8  # ~2 quarters look-ahead for monthly data
+        y_tg = df_tr["trade_goods"].values
+        T_ham = len(y_tg)
+        if T_ham > h_ham + 5:
+            Y_ham = y_tg[h_ham:]
+            X_ham_cols = np.column_stack([y_tg[h_ham - j - 1:T_ham - j - 1]
+                                          for j in range(4)])
+            X_ham = sm.add_constant(X_ham_cols)
+            ham_model = sm.OLS(Y_ham, X_ham).fit()
+            ham_cycle = Y_ham - ham_model.fittedvalues
+            ham_trend = ham_model.fittedvalues
+            ham_gap = ham_cycle / (np.abs(ham_trend) + 1) * 100
+
+            # Re-estimate Taylor rule with Hamilton output gap
+            df_ham = df_est.copy()
+            # Align Hamilton gap (it starts h_ham observations later)
+            ham_start = h_ham
+            ham_dates = df_tr["date"].iloc[ham_start:ham_start + len(ham_gap)].values
+            ham_gap_s = pd.Series(ham_gap, index=pd.to_datetime(ham_dates))
+            df_ham["output_gap_hamilton"] = df_ham["date"].map(
+                lambda d: ham_gap_s.get(d, np.nan))
+            df_ham = df_ham.dropna(subset=["output_gap_hamilton"])
+
+            if len(df_ham) > 20:
+                y_ham_ols = df_ham["interest_rate"].values
+                X_ham_ols = df_ham[["inflation_gap", "ca_gap"]].values
+                X_ham_ols = np.column_stack([X_ham_ols,
+                                              df_ham["output_gap_hamilton"].values,
+                                              df_ham["interest_rate"].shift(1).bfill().values])
+                X_ham_ols = sm.add_constant(X_ham_ols)
+                ham_ols = sm.OLS(y_ham_ols, X_ham_ols).fit(
+                    cov_type="HAC", cov_kwds={"maxlags": 4})
+
+                ham_names = ["const", "inflation_gap", "ca_gap",
+                             "output_gap_hamilton", "i_{t-1}"]
+                print(f"  Hamilton filter Taylor rule (N={len(df_ham)}):")
+                for nm, c, se, p in zip(ham_names, ham_ols.params,
+                                         ham_ols.bse, ham_ols.pvalues):
+                    print(f"    {nm:<25} coef={c:+.4f}  SE={se:.4f}  p={p:.3f}")
+
+                ham_df = pd.DataFrame({
+                    "parameter": ham_names,
+                    "hp_coef": ols_model.params[:len(ham_names)],
+                    "hamilton_coef": ham_ols.params,
+                    "hamilton_se": ham_ols.bse,
+                    "hamilton_pvalue": ham_ols.pvalues,
+                })
+                ham_path = CH3_OUTPUT / "ch3_taylor_hamilton_robustness.csv"
+                ham_df.to_csv(ham_path, index=False)
+                print(f"  Saved: {ham_path.name}")
+    except Exception as e:
+        print(f"  [WARN] Hamilton filter robustness failed: {e}")
+
     # ----- Step 2: Build nowcast and lagged series -----
     # Extract model predictions aligned with dates
     ridge_res = models_fr.get("Ridge")

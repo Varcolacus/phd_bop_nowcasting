@@ -214,10 +214,11 @@ def giacomini_white_test(e1, e2, instruments=None):
 # =====================================================================
 
 def ablation_expanding_window(df, target_col, baseline_features, alt_features,
-                               min_train_size=60, step=1):
+                               min_train_size=60, step=1,
+                               run_xgboost=True):
     """
     Run expanding-window evaluation for a given specification.
-    Uses Ridge and XGBoost.
+    Uses Ridge and optionally XGBoost.
 
     Returns: dict of {model_name: ForecastResult}
     """
@@ -240,8 +241,9 @@ def ablation_expanding_window(df, target_col, baseline_features, alt_features,
     models = {
         "AR(1)": ForecastResult("AR(1)"),
         "Ridge": ForecastResult("Ridge"),
-        "XGBoost": ForecastResult("XGBoost"),
     }
+    if run_xgboost:
+        models["XGBoost"] = ForecastResult("XGBoost")
 
     scaler = StandardScaler()
 
@@ -268,10 +270,11 @@ def ablation_expanding_window(df, target_col, baseline_features, alt_features,
         models["Ridge"].dates.append(test_date)
 
         # XGBoost
-        p = xgboost_forecast(X_train_scaled, y_train, X_test_scaled)
-        models["XGBoost"].predictions.append(p)
-        models["XGBoost"].actuals.append(y_test)
-        models["XGBoost"].dates.append(test_date)
+        if run_xgboost:
+            p = xgboost_forecast(X_train_scaled, y_train, X_test_scaled)
+            models["XGBoost"].predictions.append(p)
+            models["XGBoost"].actuals.append(y_test)
+            models["XGBoost"].dates.append(test_date)
 
     # Compute metrics
     from sklearn.metrics import mean_squared_error, mean_absolute_error
@@ -1040,7 +1043,7 @@ def main():
             alt_feats = SPECIFICATIONS[spec_name]
             mods = ablation_expanding_window(
                 df_noisy, target_col, baseline_features, alt_feats,
-                min_train_size=60, step=1
+                min_train_size=60, step=1, run_xgboost=False
             )
             for mname in ["Ridge"]:
                 rmse_v = mods.get(mname, ForecastResult("")).rmse

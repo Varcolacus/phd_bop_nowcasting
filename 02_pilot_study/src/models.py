@@ -33,6 +33,7 @@ from sklearn.linear_model import LinearRegression, LassoCV
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from sklearn.metrics import mean_squared_error, mean_absolute_error
+from sklearn.model_selection import TimeSeriesSplit
 import xgboost as xgb
 import statsmodels.api as sm
 
@@ -56,6 +57,111 @@ warnings.filterwarnings("ignore")
 DATA_DIR = Path(__file__).parent.parent / "data"
 OUTPUT_DIR = Path(__file__).parent.parent / "outputs"
 OUTPUT_DIR.mkdir(exist_ok=True)
+
+
+# ---------------------------------------------------------------------------
+# Time-Series CV Helper for Hyperparameter Tuning
+# ---------------------------------------------------------------------------
+
+def _ts_cv_score(X_train, y_train, model_cls, params, n_splits=3):
+    """Evaluate a model config via time-series cross-validation (MSE)."""
+    if len(y_train) < n_splits * 5:
+        return float('inf')
+    tscv = TimeSeriesSplit(n_splits=n_splits)
+    scores = []
+    for train_idx, val_idx in tscv.split(X_train):
+        X_tr, X_val = X_train[train_idx], X_train[val_idx]
+        y_tr, y_val = y_train[train_idx], y_train[val_idx]
+        try:
+            model = model_cls(**params)
+            model.fit(X_tr, y_tr)
+            preds = model.predict(X_val)
+            scores.append(np.mean((y_val - preds) ** 2))
+        except Exception:
+            scores.append(float('inf'))
+    return np.mean(scores)
+
+
+# ---------------------------------------------------------------------------
+# Bai-Ng (2002) IC_p2 Factor Selection
+# ---------------------------------------------------------------------------
+
+def _select_n_factors_icp2(X, max_k=8):
+    """Select number of factors using Bai & Ng (2002) IC_p2 criterion."""
+    T, N = X.shape
+    max_k = min(max_k, N, T - 2)
+    if max_k < 1:
+        return 1
+    best_k, best_ic = 1, float('inf')
+    for k in range(1, max_k + 1):
+        pca = PCA(n_components=k)
+        F = pca.fit_transform(X)
+        X_hat = F @ pca.components_
+        V_k = np.mean((X - X_hat) ** 2)
+        if V_k <= 0:
+            continue
+        penalty = k * ((N + T) / (N * T)) * np.log(min(N, T))
+        ic = np.log(V_k) + penalty
+        if ic < best_ic:
+            best_ic = ic
+            best_k = k
+    return best_k
+
+
+# ---------------------------------------------------------------------------
+# Holm-Bonferroni Multiple Testing Correction
+# ---------------------------------------------------------------------------
+
+def holm_bonferroni(p_values):
+    """Apply Holm-Bonferroni correction to an array of p-values."""
+    p = np.asarray(p_values, dtype=float)
+    n = len(p)
+    if n <= 1:
+        return p.copy()
+    order = np.argsort(p)
+    adjusted = np.empty(n)
+    for i, idx in enumerate(order):
+        adjusted[idx] = min(1.0, p[idx] * (n - i))
+    # enforce monotonicity
+    prev = 0.0
+    for idx in order:
+        adjusted[idx] = max(adjusted[idx], prev)
+        prev = adjusted[idx]
+    return adjusted
+
+
+# ---------------------------------------------------------------------------
+# Unit-Root Diagnostics (ADF + KPSS)
+# ---------------------------------------------------------------------------
+
+def unit_root_tests(df, cols):
+    """Run ADF and KPSS tests on specified columns."""
+    from statsmodels.tsa.stattools import adfuller, kpss
+    rows = []
+    for col in cols:
+        series = df[col].dropna()
+        if len(series) < 20:
+            continue
+        try:
+            adf_stat, adf_p, *_ = adfuller(series, autolag='AIC')
+        except Exception:
+            adf_stat, adf_p = np.nan, np.nan
+        try:
+            kpss_stat, kpss_p, *_ = kpss(series, regression='c', nlags='auto')
+        except Exception:
+            kpss_stat, kpss_p = np.nan, np.nan
+        if adf_p < 0.05 and kpss_p > 0.05:
+            conclusion = 'Stationary'
+        elif adf_p > 0.05 and kpss_p < 0.05:
+            conclusion = 'Unit root'
+        else:
+            conclusion = 'Inconclusive'
+        rows.append({'variable': col, 'adf_stat': round(adf_stat, 3),
+                     'adf_pvalue': round(adf_p, 4),
+                     'kpss_stat': round(kpss_stat, 3),
+                     'kpss_pvalue': round(kpss_p, 4),
+                     'conclusion': conclusion})
+    return pd.DataFrame(rows)
 
 
 # ---------------------------------------------------------------------------
@@ -139,19 +245,35 @@ def ols_forecast(X_train, y_train, X_test_row):
 
 def gradient_boosting_forecast(X_train, y_train, X_test_row):
     """
-    Scikit-learn Gradient Boosting. 1-step-ahead forecast.
+    Scikit-learn Gradient Boosting with time-series CV hyperparameter
+    selection.  Falls back to default config when training set is too
+    small for 3-fold TSCV.
     """
     if len(y_train) < 10:
         return np.nan
 
-    model = GradientBoostingRegressor(
-        n_estimators=100,
-        max_depth=3,
-        learning_rate=0.05,
-        min_samples_leaf=5,
-        random_state=42,
-    )
+    _GB_GRID = [
+        {"n_estimators": 100, "max_depth": 3, "learning_rate": 0.05,
+         "min_samples_leaf": 5, "random_state": 42},
+        {"n_estimators": 100, "max_depth": 3, "learning_rate": 0.1,
+         "min_samples_leaf": 5, "random_state": 42},
+        {"n_estimators": 100, "max_depth": 5, "learning_rate": 0.05,
+         "min_samples_leaf": 5, "random_state": 42},
+        {"n_estimators": 200, "max_depth": 3, "learning_rate": 0.05,
+         "min_samples_leaf": 5, "random_state": 42},
+    ]
+    best_params = _GB_GRID[0]
+    if len(y_train) >= 20:
+        best_score = float('inf')
+        for params in _GB_GRID:
+            score = _ts_cv_score(X_train, y_train,
+                                GradientBoostingRegressor, params)
+            if score < best_score:
+                best_score = score
+                best_params = params
+
     try:
+        model = GradientBoostingRegressor(**best_params)
         model.fit(X_train, y_train)
         return model.predict(X_test_row.reshape(1, -1))[0]
     except Exception as e:
@@ -161,23 +283,41 @@ def gradient_boosting_forecast(X_train, y_train, X_test_row):
 
 def xgboost_forecast(X_train, y_train, X_test_row):
     """
-    XGBoost regression. 1-step-ahead forecast.
+    XGBoost with time-series CV hyperparameter selection.
     """
     if len(y_train) < 10:
         return np.nan
 
-    model = xgb.XGBRegressor(
-        n_estimators=100,
-        max_depth=3,
-        learning_rate=0.1,
-        min_child_weight=5,
-        colsample_bytree=0.8,
-        reg_alpha=0.1,
-        reg_lambda=1.0,
-        random_state=42,
-        verbosity=0,
-    )
+    _XGB_GRID = [
+        {"n_estimators": 100, "max_depth": 3, "learning_rate": 0.1,
+         "min_child_weight": 5, "colsample_bytree": 0.8,
+         "reg_alpha": 0.1, "reg_lambda": 1.0,
+         "random_state": 42, "verbosity": 0},
+        {"n_estimators": 100, "max_depth": 3, "learning_rate": 0.05,
+         "min_child_weight": 5, "colsample_bytree": 0.8,
+         "reg_alpha": 0.1, "reg_lambda": 1.0,
+         "random_state": 42, "verbosity": 0},
+        {"n_estimators": 100, "max_depth": 5, "learning_rate": 0.1,
+         "min_child_weight": 5, "colsample_bytree": 0.8,
+         "reg_alpha": 0.1, "reg_lambda": 1.0,
+         "random_state": 42, "verbosity": 0},
+        {"n_estimators": 100, "max_depth": 3, "learning_rate": 0.1,
+         "min_child_weight": 5, "colsample_bytree": 1.0,
+         "reg_alpha": 0.0, "reg_lambda": 0.0,
+         "random_state": 42, "verbosity": 0},
+    ]
+    best_params = _XGB_GRID[0]
+    if len(y_train) >= 20:
+        best_score = float('inf')
+        for params in _XGB_GRID:
+            score = _ts_cv_score(X_train, y_train,
+                                xgb.XGBRegressor, params)
+            if score < best_score:
+                best_score = score
+                best_params = params
+
     try:
+        model = xgb.XGBRegressor(**best_params)
         model.fit(X_train, y_train)
         return model.predict(X_test_row.reshape(1, -1))[0]
     except Exception as e:
@@ -190,23 +330,26 @@ def xgboost_forecast(X_train, y_train, X_test_row):
 # ---------------------------------------------------------------------------
 
 class _LSTMNet(nn.Module if HAS_TORCH else object):
-    """Simple single-layer LSTM for 1-step-ahead regression."""
-    def __init__(self, input_size, hidden_size=32):
+    """Single-layer LSTM with dropout for 1-step-ahead regression."""
+    def __init__(self, input_size, hidden_size=32, dropout=0.2):
         super().__init__()
         self.lstm = nn.LSTM(input_size, hidden_size, batch_first=True)
+        self.dropout = nn.Dropout(dropout)
         self.fc = nn.Linear(hidden_size, 1)
 
     def forward(self, x):
         # x: (batch, seq_len, features)
         out, _ = self.lstm(x)
-        return self.fc(out[:, -1, :]).squeeze(-1)
+        out = self.dropout(out[:, -1, :])
+        return self.fc(out).squeeze(-1)
 
 
 def lstm_forecast(X_train, y_train, X_test_row, lookback=4, hidden_size=32,
                   epochs=100, lr=0.005):
     """
-    LSTM 1-step-ahead forecast using a rolling lookback window.
-    Requires PyTorch.
+    LSTM 1-step-ahead forecast with validation-based early stopping
+    and learning-rate scheduling.  Uses last 20 % of the training
+    window as hold-out validation for early stopping.
     """
     if not HAS_TORCH:
         return np.nan
@@ -222,26 +365,43 @@ def lstm_forecast(X_train, y_train, X_test_row, lookback=4, hidden_size=32,
         X_seq = np.array(X_seq, dtype=np.float32)
         y_seq = np.array(y_seq, dtype=np.float32)
 
-        X_t = torch.from_numpy(X_seq)
-        y_t = torch.from_numpy(y_seq)
+        # Train / validation split (last 20 %)
+        n_seq = len(y_seq)
+        n_val = max(2, int(0.2 * n_seq))
+        X_tr, X_val = X_seq[:-n_val], X_seq[-n_val:]
+        y_tr, y_val = y_seq[:-n_val], y_seq[-n_val:]
+
+        X_t = torch.from_numpy(X_tr)
+        y_t = torch.from_numpy(y_tr)
+        X_v = torch.from_numpy(X_val)
+        y_v = torch.from_numpy(y_val)
 
         model = _LSTMNet(X_train.shape[1], hidden_size)
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer, patience=5, factor=0.5)
         loss_fn = nn.MSELoss()
 
-        model.train()
-        best_loss = float('inf')
+        best_val_loss = float('inf')
+        best_state = None
         patience_counter = 0
         for epoch in range(epochs):
+            model.train()
             optimizer.zero_grad()
             pred = model(X_t)
             loss = loss_fn(pred, y_t)
             loss.backward()
             optimizer.step()
 
-            # Early stopping
-            if loss.item() < best_loss - 1e-4:
-                best_loss = loss.item()
+            # Validation-based early stopping
+            model.eval()
+            with torch.no_grad():
+                val_loss = loss_fn(model(X_v), y_v).item()
+            scheduler.step(val_loss)
+
+            if val_loss < best_val_loss - 1e-4:
+                best_val_loss = val_loss
+                best_state = {k: v.clone() for k, v in model.state_dict().items()}
                 patience_counter = 0
             else:
                 patience_counter += 1
@@ -249,6 +409,8 @@ def lstm_forecast(X_train, y_train, X_test_row, lookback=4, hidden_size=32,
                     break
 
         # Predict: use last `lookback` rows of training features
+        if best_state is not None:
+            model.load_state_dict(best_state)
         model.eval()
         with torch.no_grad():
             x_new = np.vstack([X_train[-(lookback - 1):], X_test_row.reshape(1, -1)])
@@ -277,7 +439,8 @@ class _GRUNet(nn.Module if HAS_TORCH else object):
 
 def gru_forecast(X_train, y_train, X_test_row, lookback=4, hidden_size=32,
                  epochs=100, lr=0.005):
-    """GRU 1-step-ahead forecast — simpler recurrent architecture."""
+    """GRU 1-step-ahead forecast with validation-based early stopping
+    and learning-rate scheduling."""
     if not HAS_TORCH:
         return np.nan
     if len(y_train) < lookback + 10:
@@ -291,31 +454,50 @@ def gru_forecast(X_train, y_train, X_test_row, lookback=4, hidden_size=32,
         X_seq = np.array(X_seq, dtype=np.float32)
         y_seq = np.array(y_seq, dtype=np.float32)
 
-        X_t = torch.from_numpy(X_seq)
-        y_t = torch.from_numpy(y_seq)
+        # Train / validation split (last 20 %)
+        n_seq = len(y_seq)
+        n_val = max(2, int(0.2 * n_seq))
+        X_tr, X_val = X_seq[:-n_val], X_seq[-n_val:]
+        y_tr, y_val = y_seq[:-n_val], y_seq[-n_val:]
+
+        X_t = torch.from_numpy(X_tr)
+        y_t = torch.from_numpy(y_tr)
+        X_v = torch.from_numpy(X_val)
+        y_v = torch.from_numpy(y_val)
 
         model = _GRUNet(X_train.shape[1], hidden_size)
         optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=1e-4)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer, patience=5, factor=0.5)
         loss_fn = nn.MSELoss()
 
-        model.train()
-        best_loss = float('inf')
+        best_val_loss = float('inf')
+        best_state = None
         patience_counter = 0
         for epoch in range(epochs):
+            model.train()
             optimizer.zero_grad()
             pred = model(X_t)
             loss = loss_fn(pred, y_t)
             loss.backward()
             optimizer.step()
 
-            if loss.item() < best_loss - 1e-4:
-                best_loss = loss.item()
+            model.eval()
+            with torch.no_grad():
+                val_loss = loss_fn(model(X_v), y_v).item()
+            scheduler.step(val_loss)
+
+            if val_loss < best_val_loss - 1e-4:
+                best_val_loss = val_loss
+                best_state = {k: v.clone() for k, v in model.state_dict().items()}
                 patience_counter = 0
             else:
                 patience_counter += 1
                 if patience_counter >= 15:
                     break
 
+        if best_state is not None:
+            model.load_state_dict(best_state)
         model.eval()
         with torch.no_grad():
             x_new = np.vstack([X_train[-(lookback - 1):], X_test_row.reshape(1, -1)])
@@ -330,17 +512,24 @@ def gru_forecast(X_train, y_train, X_test_row, lookback=4, hidden_size=32,
 # Dynamic Factor Model (Stock & Watson, 2002)
 # ---------------------------------------------------------------------------
 
-def dfm_forecast(X_train, y_train, X_test_row, n_factors=2):
+def dfm_forecast(X_train, y_train, X_test_row, n_factors=None):
     """
     DFM-style nowcasting: extract principal components from the feature
     matrix, then regress the target on the extracted factors.
     Follows Stock & Watson (2002) two-step approach.
+
+    Number of factors is selected automatically via Bai & Ng (2002)
+    IC_p2 criterion when n_factors is None.
     """
     if len(y_train) < 15:
         return np.nan
 
     try:
-        k = min(n_factors, X_train.shape[1], len(y_train) - 2)
+        if n_factors is None:
+            k = _select_n_factors_icp2(X_train)
+        else:
+            k = n_factors
+        k = min(k, X_train.shape[1], len(y_train) - 2)
         if k < 1:
             return np.nan
 

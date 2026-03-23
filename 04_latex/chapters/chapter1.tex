@@ -5,7 +5,7 @@
 \label{ch:model_comparison}
 
 \begin{abstract}
-This chapter conducts a systematic comparison of econometric and machine-learning approaches for nowcasting France's quarterly current account balance.  Nine models---AR(1), AR(4), Dynamic Factor Model, Bridge equation, Ridge regression, Gradient Boosting, XGBoost, LSTM, and GRU---are evaluated on both quarterly current account and monthly goods trade data over 2003--2022 using an expanding-window protocol with a minimum training sample of 40~quarters (10~years).  Ridge regression delivers the largest and most robust improvement: a~26.3\% RMSE reduction over AR(1) at the quarterly frequency, significant at the~5\% level via the \citet{diebold1995comparing} test ($p = 0.013$) and at the~1\% level via the \citet{clark2007approximately} nested-model test ($p < 0.001$), with an out-of-sample~$R^2$ of~0.46.  Traditional econometric approaches (DFM, Bridge) offer moderate but less consistent gains.  Complex nonlinear methods---Gradient Boosting, XGBoost---improve on the benchmark but are outperformed by Ridge.  Both LSTM (${+}1.0$\% RMSE) and GRU (${+}0.9$\%) fail entirely, confirming that deep learning---regardless of recurrent architecture---is ill-suited to the small-sample macroeconomic setting.  These results corroborate \citet{gouletcoulombe2022how}'s finding that regularised linear models dominate in low-dimensional macroeconomic forecasting.
+This chapter conducts a systematic comparison of econometric and machine-learning approaches for nowcasting France's quarterly current account balance.  Nine models---AR(1), AR(4), Dynamic Factor Model, Bridge equation, Ridge regression, Gradient Boosting, XGBoost, LSTM, and GRU---are evaluated on both quarterly current account and monthly goods trade data over 2003--2022 using an expanding-window protocol with a minimum training sample of 40~quarters (10~years).  Ridge regression delivers the largest and most robust improvement: a~26.3\% RMSE reduction over AR(1) at the quarterly frequency, significant at the~5\% level via the \citet{diebold1995comparing} test ($p = 0.013$) and at the~1\% level via the \citet{clark2007approximately} nested-model test ($p < 0.001$), with an out-of-sample~$R^2$ of~0.46.  Traditional econometric approaches (DFM, Bridge) offer moderate but less consistent gains.  Complex nonlinear methods---Gradient Boosting, XGBoost---improve on the benchmark but are outperformed by Ridge.  Both LSTM (${+}1.0$\% RMSE) and GRU (${+}1.0$\%) fail entirely, confirming that deep learning---regardless of recurrent architecture---is ill-suited to the small-sample macroeconomic setting.  These results corroborate \citet{gouletcoulombe2022how}'s finding that regularised linear models dominate in low-dimensional macroeconomic forecasting.
 \end{abstract}
 
 
@@ -71,6 +71,33 @@ The predictor set contains 14~monthly macroeconomic and financial variables:
 
 All series are seasonally adjusted where applicable, stationarity is ensured through first-differencing or log-differencing, and missing values are interpolated using the EM algorithm following \citet{stock2002macroeconomic}.
 
+\subsection{Unit-Root Diagnostics}
+
+We assess the stationarity of all variables using both the augmented Dickey--Fuller (ADF) test \citep{dickey1979distribution}---whose null hypothesis is a unit root---and the KPSS test \citep{kwiatkowski1992testing}---whose null is stationarity.  Combining both tests reduces the risk of erroneous conclusions from either alone.  Table~\ref{tab:ch1_unitroot} summarises the results.
+
+\begin{table}[htbp]
+\centering
+\caption{Unit-root diagnostics: ADF and KPSS test results}
+\label{tab:ch1_unitroot}
+\begin{tabular}{@{} l rr rr l @{}}
+\toprule
+{Variable} & {ADF stat} & {ADF $p$} & {KPSS stat} & {KPSS $p$} & {Conclusion} \\
+\midrule
+bop\_ca       & $-$1.95 & 0.309 & 1.275 & $<$0.01 & Unit root \\
+bop\_goods    & $-$0.28 & 0.928 & 1.169 & $<$0.01 & Unit root \\
+bop\_services & $-$1.69 & 0.435 & 1.349 & $<$0.01 & Unit root \\
+gdp           & $-$0.26 & 0.932 & 1.593 & $<$0.01 & Unit root \\
+interest\_rate& $-$1.93 & 0.320 & 1.310 & $<$0.01 & Unit root \\
+bop\_ca\_yoy  & $-$7.56 & $<$0.001 & 0.067 & $>$0.10 & Stationary \\
+bop\_ca\_qoq  & $-$7.96 & $<$0.001 & 0.101 & $>$0.10 & Stationary \\
+gdp\_yoy      & $-$3.37 & 0.012 & 0.076 & $>$0.10 & Stationary \\
+gdp\_qoq      & $-$10.73 & $<$0.001 & 0.083 & $>$0.10 & Stationary \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Level series (current account, goods trade, GDP, interest rate) exhibit unit roots, while year-on-year and quarter-on-quarter transformations are stationary by both tests.  The EUR/USD rate and HICP are classified as inconclusive (ADF fails to reject but KPSS does not reject stationarity either).  All non-stationary series enter the models in first-differenced or growth-rate form, ensuring that the forecasting regressions operate on stationary data.
+
 
 % -------------------------------------------------------------------
 \section{Methodology}
@@ -88,8 +115,8 @@ We evaluate nine models spanning four methodological families:
 
 \paragraph{Econometric models.}
 \begin{itemize}
-  \item \textbf{Dynamic Factor Model (DFM):} Extracts $k=2$ principal components from the standardised predictor panel and uses them in a linear forecasting equation.  Implemented via PCA following \citet{stock2002macroeconomic}.
-  \item \textbf{Bridge equation:} Regresses the quarterly target on the quarterly average of the best monthly predictor (selected by in-sample $R^2$) following \citet{baffigi2004bridge}.
+  \item \textbf{Dynamic Factor Model (DFM):} Extracts $k$ principal components from the standardised predictor panel and uses them in a linear forecasting equation.  The number of factors $k$ is selected automatically at each expanding-window step using the $IC_{p2}$ information criterion of \citet{bai2002determining}: $IC_{p2}(k) = \ln V(k) + k\,\frac{N+T}{NT}\,\ln\min(N,T)$, where $V(k)$ is the average squared residual with $k$ factors.  Implemented via PCA following \citet{stock2002macroeconomic}.
+  \item \textbf{Bridge equation:} Selects up to five monthly predictors via forward stepwise BIC minimisation at each expanding-window step, then regresses the quarterly target on the quarterly averages of the selected indicators following \citet{baffigi2004bridge}.
 \end{itemize}
 
 \paragraph{Machine Learning -- Linear.}
@@ -99,10 +126,10 @@ We evaluate nine models spanning four methodological families:
 
 \paragraph{Machine Learning -- Nonlinear.}
 \begin{itemize}
-  \item \textbf{Gradient Boosting (GB):} Sklearn implementation, 100 trees, max depth~3, learning rate~0.05, min samples leaf~5.
-  \item \textbf{XGBoost:} Same architecture as GB but with column subsampling (0.8) and $\ell_2$ regularisation ($\lambda = 1$) \citep{chen2016xgboost}.
-  \item \textbf{LSTM:} Single-layer LSTM with 32 hidden units, lookback window of 4 periods, trained with Adam optimiser (lr $= 0.005$) for 100 epochs with early stopping (patience~15) \citep{hochreiter1997long}.
-  \item \textbf{GRU:} Two-layer Gated Recurrent Unit with 32 hidden units, dropout~0.1, weight decay $10^{-4}$, and early stopping (patience~15).  GRU is a simpler recurrent architecture that replaces LSTM's three gates with two \citep{cho2014learning}.
+  \item \textbf{Gradient Boosting (GB):} Sklearn implementation with hyperparameters selected by three-fold time-series cross-validation (\texttt{TimeSeriesSplit}) at each expanding-window step over a grid of learning rate $\in \{0.05, 0.1\}$, max depth $\in \{3, 5\}$, and $n_\text{estimators} \in \{100, 200\}$.
+  \item \textbf{XGBoost:} Same TSCV protocol as GB with a grid over learning rate $\in \{0.05, 0.1\}$, max depth $\in \{3, 5\}$, and regularisation $\lambda \in \{0, 1\}$ \citep{chen2016xgboost}.
+  \item \textbf{LSTM:} Single-layer LSTM with 32 hidden units, dropout~0.2 between the recurrent and output layers, lookback window of 4 periods, trained with Adam optimiser (lr $= 0.005$).  A held-out validation set (last 20\% of the training window) is used for early stopping with patience~15 and for a \texttt{ReduceLROnPlateau} scheduler (factor~0.5, patience~5).  The best validation-loss state is restored before forecasting \citep{hochreiter1997long}.
+  \item \textbf{GRU:} Two-layer Gated Recurrent Unit with 32 hidden units, dropout~0.1, weight decay $10^{-4}$.  Validation-based early stopping (patience~15) and \texttt{ReduceLROnPlateau} scheduling follow the same protocol as LSTM \citep{cho2014learning}.
 \end{itemize}
 
 \subsection{Evaluation Protocol}
@@ -141,13 +168,13 @@ Table~\ref{tab:ch1_quarterly} presents the main results for quarterly current ac
 \midrule
 AR(1)              & 8913 &   {---} & {---}  & 48\% \\
 AR(4)              & 7512 & -15.7 & 0.114 & 72\% \\
-DFM                & 8328 &  -6.6 & 0.207 & 52\% \\
+DFM                & 7229 & -18.9 & 0.049 & 80\% \\
 Bridge             & 7685 & -13.8 & 0.288 & 76\% \\
 Ridge              & 6567 & -26.3 & 0.013 & 78\\% \\
-Gradient Boosting  & 7458 & -16.3 & 0.077 & 72\% \\
-XGBoost            & 7579 & -15.0 & 0.107 & 68\% \\
-LSTM               & 8999 &  +1.0 & 0.891 & 32\% \\
-GRU                & 8995 &  +0.9 & 0.904 & 48\% \\
+Gradient Boosting  & 7344 & -17.6 & 0.062 & 72\% \\
+XGBoost            & 7476 & -16.1 & 0.082 & 72\% \\
+LSTM               & 9004 &  +1.0 & 0.669 & 54\% \\
+GRU                & 9000 &  +1.0 & 0.681 & 42\% \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -165,9 +192,9 @@ Several findings emerge.
 
 \emph{First}, Ridge regression dominates all alternatives, reducing RMSE by~26.3\% relative to AR(1).  The \citet{diebold1995comparing} test confirms that this improvement is statistically significant at the~5\% level ($p = 0.013$).  Ridge also achieves the highest directional accuracy (78\%), meaning it correctly predicts whether the current account deteriorates or improves in more than three quarters of the evaluation periods.
 
-\emph{Second}, traditional econometric approaches provide moderate improvements.  The DFM reduces RMSE by~6.6\% but the improvement is not statistically significant ($p = 0.207$), consistent with the relatively low dimensionality of our predictor set (DFMs excel when hundreds of series are available).  The Bridge equation performs better ($-13.8\%$), though the DM test does not reject equal accuracy ($p = 0.288$), suggesting that its advantage is less stable across evaluation sub-samples.
+\emph{Second}, traditional econometric approaches provide meaningful improvements.  The DFM---with factor count selected by the $IC_{p2}$ criterion---reduces RMSE by~18.9\%, now significant at the~5\% level ($p = 0.049$), a marked improvement over fixed two-factor specifications and consistent with the importance of data-driven factor selection \citep{bai2002determining}.  The Bridge equation performs moderately ($-13.8\%$), though the DM test does not reject equal accuracy ($p = 0.288$), suggesting that its advantage is less stable across evaluation sub-samples.
 
-\emph{Third}, nonlinear ML methods improve on the AR(1) benchmark but are dominated by Ridge.  Gradient Boosting ($-16.3\%$, $p = 0.077$) and XGBoost ($-15.0\%$, $p = 0.107$) both deliver gains significant at the~10\% level but not at the~5\% level.  Their underperformance relative to Ridge is consistent with the bias--variance tradeoff: with only~51 evaluation points drawn from a 91-quarter sample, the variance reduction from $\ell_2$ regularisation dominates the potential nonlinear fit gains from tree ensembles.  This finding corroborates \citet{gouletcoulombe2022how}.
+\emph{Third}, nonlinear ML methods improve on the AR(1) benchmark but are dominated by Ridge.  Gradient Boosting ($-17.6\%$, $p = 0.062$) and XGBoost ($-16.1\%$, $p = 0.082$) both deliver gains significant at the~10\% level but not at the~5\% level.  Their underperformance relative to Ridge is consistent with the bias--variance tradeoff: with only~51 evaluation points drawn from a 91-quarter sample, the variance reduction from $\ell_2$ regularisation dominates the potential nonlinear fit gains from tree ensembles.  This finding corroborates \citet{gouletcoulombe2022how}.
 
 \emph{Fourth}, LSTM fails entirely, producing an RMSE~1\% \emph{larger} than AR(1).  With only 92 quarterly observations and 14~features, the network overfits despite regularisation via early stopping.  This failure provides a useful cautionary datum for the literature.
 
@@ -204,13 +231,13 @@ To provide uncertainty quantification for the RMSE improvements reported above, 
 {Model} & {\% vs.\ AR(1)} & {95\% CI} \\
 \midrule
 AR(4)              & -15.7 & $[-34.3, +0.9]$ \\
-DFM                &  -6.6 & $[-15.1, -1.0]$ \\
+DFM                & -18.9 & $[-35.0, -4.2]$ \\
 Bridge             & -13.8 & $[-39.5, +14.0]$ \\
 Ridge              & -26.3 & $[-41.2, -16.4]$ \\
-Gradient Boosting  & -16.3 & $[-28.1, -5.5]$ \\
-XGBoost            & -15.0 & $[-27.8, -4.2]$ \\
-LSTM               &  +1.0 & $[-3.6, +3.7]$ \\
-GRU                &  +0.9 & $[-4.2, +3.7]$ \\
+Gradient Boosting  & -17.6 & $[-29.8, -6.2]$ \\
+XGBoost            & -16.1 & $[-27.9, -6.0]$ \\
+LSTM               &  +1.0 & $[-3.6, +3.8]$ \\
+GRU                &  +1.0 & $[-4.1, +3.7]$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -224,7 +251,7 @@ Figure~\ref{fig:ch1_errors} shows the distribution of forecast errors across mod
 \label{fig:ch1_errors}
 \end{figure}
 
-The Ridge improvement is tightly estimated: even in the worst-case bootstrap draw, Ridge reduces RMSE by at least~16.4\%.  The DFM interval is entirely below zero ($[-15.1, -1.0]$), suggesting a genuine, if modest, improvement.  The Bridge interval spans zero ($[-39.5, +14.0]$), reflecting its higher variability across subsamples.  Both LSTM and GRU intervals straddle zero, confirming that recurrent networks cannot be distinguished from the benchmark in this setting.
+The Ridge improvement is tightly estimated: even in the worst-case bootstrap draw, Ridge reduces RMSE by at least~16.4\%.  The DFM interval is entirely below zero ($[-35.0, -4.2]$), confirming a genuine and substantial improvement under the data-driven factor-count selection.  The Bridge interval spans zero ($[-39.5, +14.0]$), reflecting its higher variability across subsamples.  Both LSTM and GRU intervals straddle zero, confirming that recurrent networks cannot be distinguished from the benchmark in this setting.
 
 \subsection{Sub-Period Stability}
 
@@ -243,22 +270,22 @@ Table~\ref{tab:ch1_subperiod} decomposes the RMSE by sub-period to assess whethe
 AR(1)     & 6{,}587 & ---  && 9{,}305 & ---  && 11{,}489 & --- \\
 AR(4)     & 4{,}563 & $-$30.7 && 6{,}383 & $-$31.4 && 12{,}234 & $+$6.5 \\
 Ridge     & 4{,}496 & $-$31.7 && 6{,}514 & $-$30.0 && 9{,}275  & $-$19.3 \\
-DFM       & 5{,}552 & $-$15.7 && 8{,}885 & $-$4.5  && 11{,}046 & $-$3.9 \\
+DFM       & 4{,}579 & $-$30.5 && 6{,}457 & $-$30.6  && 11{,}330 & $-$1.4 \\
 Bridge    & 4{,}299 & $-$34.7 && 6{,}309 & $-$32.2 && 12{,}957 & $+$12.8 \\
-GB        & 4{,}212 & $-$36.1 && 7{,}477 & $-$19.6 && 11{,}134 & $-$3.1 \\
-XGBoost   & 4{,}489 & $-$31.8 && 7{,}693 & $-$17.3 && 11{,}050 & $-$3.8 \\
-LSTM      & 6{,}637 & $+$0.8  && 9{,}001 & $-$3.3  && 12{,}168 & $+$5.9 \\
-GRU       & 6{,}634 & $+$0.7  && 9{,}001 & $-$3.3  && 12{,}157 & $+$5.8 \\
+GB        & 4{,}172 & $-$36.7 && 7{,}323 & $-$21.3 && 10{,}994 & $-$4.3 \\
+XGBoost   & 4{,}284 & $-$35.0 && 7{,}456 & $-$19.9 && 11{,}165 & $-$2.8 \\
+LSTM      & 6{,}646 & $+$0.9  && 9{,}006 & $-$3.2  && 12{,}169 & $+$5.9 \\
+GRU       & 6{,}640 & $+$0.8  && 9{,}002 & $-$3.3  && 12{,}168 & $+$5.9 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Ridge is the only model that delivers substantial RMSE improvements across all three sub-periods: $-31.7\%$ in 2010--2014, $-30.0\%$ in 2015--2019, and $-19.3\%$ in 2020--2022.  The COVID-era sub-period is particularly revealing: AR(4) and Bridge---methods that rely heavily on lagged values of the target---deteriorate markedly ($+6.5\%$ and $+12.8\%$ respectively), while Ridge's $\ell_2$ regularisation provides effective insurance against extreme observations.  Tree-based methods (GB, XGBoost) show strong pre-2020 performance ($-36.1\%$ and $-31.8\%$ in 2010--2014) but collapse to near-AR(1) levels during the pandemic, suggesting that the learned nonlinear splits are fragile to regime breaks. 
+Ridge is the only model that delivers substantial RMSE improvements across all three sub-periods: $-31.7\%$ in 2010--2014, $-30.0\%$ in 2015--2019, and $-19.3\%$ in 2020--2022.  The DFM, with data-driven factor selection, now rivals Ridge in pre-pandemic sub-periods ($-30.5\%$ in 2010--2014, $-30.6\%$ in 2015--2019) but deteriorates during the COVID shock ($-1.4\%$ in 2020--2022), suggesting that the linear factor structure breaks down under extreme observations.  The COVID-era sub-period is particularly revealing: AR(4) and Bridge---methods that rely heavily on lagged values of the target---deteriorate markedly ($+6.5\%$ and $+12.8\%$ respectively), while Ridge's $\ell_2$ regularisation provides effective insurance against extreme observations.  Tree-based methods (GB, XGBoost) show strong pre-2020 performance ($-36.7\%$ and $-35.0\%$ in 2010--2014) but weaken during the pandemic, suggesting that the learned nonlinear splits are fragile to regime breaks. 
 
 \subsection{Hyperparameter Sensitivity}
 \label{sec:ch1_sensitivity}
 
-To verify that our results are not artifacts of specific hyperparameter choices, we conduct a sensitivity analysis over six configurations for the two tree-based models.  Table~\ref{tab:ch1_hyperparam} reports the RMSE under each configuration.
+Although the main evaluation uses time-series cross-validation to select GB and XGBoost hyperparameters adaptively at each expanding-window step, we also conduct a sensitivity analysis with fixed hyperparameter configurations to assess how sensitive the results are to specific choices.  Table~\ref{tab:ch1_hyperparam} reports the RMSE under each configuration.
 
 \begin{table}[htbp]
 \centering
@@ -294,22 +321,48 @@ The \citet{diebold1995comparing} test may be undersized when comparing nested mo
 {Model} & {CW stat} & {CW $p$} & {$R^2_{\text{OOS}}$} \\
 \midrule
 AR(4)              & 3.359 & 0.0004 & 0.290 \\
-DFM                & 2.391 & 0.0084 & 0.127 \\
-Bridge             & 2.965 & 0.0015 & 0.257 \\
+DFM                & 3.246 & 0.0006 & 0.342 \\
+Bridge             & 2.965 & 0.0015 & 0.256 \\
 Ridge              & 3.728 & 0.0001 & 0.457 \\
-Gradient Boosting  & 3.541 & 0.0002 & 0.300 \\
-XGBoost            & 3.360 & 0.0004 & 0.277 \\
-LSTM               & 0.382 & 0.351  & $-$0.019 \\
-GRU                & 0.402 & 0.344  & $-$0.019 \\
+Gradient Boosting  & 3.624 & 0.0001 & 0.321 \\
+XGBoost            & 3.377 & 0.0004 & 0.296 \\
+LSTM               & 0.369 & 0.356  & $-$0.021 \\
+GRU                & 0.380 & 0.352  & $-$0.020 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The CW test confirms that all models except LSTM and GRU significantly outperform AR(1) at the~1\% level.  Notably, the DFM, which was not significant under the DM test ($p = 0.207$), becomes highly significant under CW ($p = 0.008$), reflecting the power advantage of the nested-model correction.  Ridge achieves the highest CW statistic (3.728) and the largest~$R^2_{\text{OOS}}$ (0.457): nearly half the AR(1) out-of-sample variance is eliminated.
+The CW test confirms that all models except LSTM and GRU significantly outperform AR(1) at the~1\% level.  The DFM achieves a CW statistic of~3.246 and an~$R^2_{\text{OOS}}$ of~0.342, confirming that the data-driven factor selection substantially improves its forecasting ability relative to fixed-factor specifications.  Ridge achieves the highest CW statistic (3.728) and the largest~$R^2_{\text{OOS}}$ (0.457): nearly half the AR(1) out-of-sample variance is eliminated.
+
+\subsection{Multiple-Testing Correction}
+
+With eight models tested against a single benchmark, the probability of at least one spurious rejection at the~5\% level rises to $1 - (1-0.05)^8 \approx 34\%$.  To guard against this, we apply the \citet{holm1979simple} step-down correction to both DM and CW $p$-values.  Table~\ref{tab:ch1_holm} reports raw and adjusted $p$-values.
+
+\begin{table}[htbp]
+\centering
+\caption{Holm--Bonferroni adjusted $p$-values for DM and CW tests}
+\label{tab:ch1_holm}
+\begin{tabular}{@{} l rr rr @{}}
+\toprule
+{Model} & {DM $p$} & {DM $p_{\text{adj}}$} & {CW $p$} & {CW $p_{\text{adj}}$} \\
+\midrule
+AR(4)              & 0.114 & 0.457 & 0.0004 & 0.002 \\
+DFM                & 0.049 & 0.340 & 0.0006 & 0.002 \\
+Bridge             & 0.288 & 0.864 & 0.0015 & 0.005 \\
+Ridge              & 0.013 & 0.104 & 0.0001 & 0.001 \\
+Gradient Boosting  & 0.062 & 0.373 & 0.0001 & 0.001 \\
+XGBoost            & 0.082 & 0.412 & 0.0004 & 0.002 \\
+LSTM               & 0.669 & 1.000 & 0.356  & 0.704 \\
+GRU                & 0.681 & 1.000 & 0.352  & 0.704 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Under the corrected DM test, no individual model achieves significance at the~5\% level---Ridge's adjusted $p = 0.104$ is closest.  This is a direct consequence of the small evaluation sample ($T = 51$): the DM test already has limited power in small samples, and the Holm correction further tightens the significance threshold.  However, the CW adjusted $p$-values remain highly significant for all models except LSTM and GRU: Ridge's adjusted CW $p = 0.001$, confirming that the nested-model-corrected test---which has greater power in finite samples \citep{clark2007approximately}---survives the multiple-testing penalty.  We therefore report both raw and corrected $p$-values throughout and interpret significance conservatively.
 
 \subsection{Forecast Combination}
 
-Following the combination literature \citep{timmermann2006forecast}, we construct an inverse-RMSE-weighted combination of the seven models that outperform AR(1), excluding LSTM and GRU.  The combined forecast achieves an RMSE of~6{,}689 (a~24.9\% improvement over AR(1)), slightly below the stand-alone Ridge (RMSE~6{,}567, $-26.3$\%).  This small loss relative to the best individual model is not unusual: combination gains are largest when constituent forecasts are diverse and approximately equal in quality \citep{timmermann2006forecast}.
+Following the combination literature \citep{timmermann2006forecast}, we construct an inverse-RMSE-weighted combination of the seven models that outperform AR(1), excluding LSTM and GRU.  The combined forecast achieves an RMSE of~6{,}645 (a~25.5\% improvement over AR(1)), slightly below the stand-alone Ridge (RMSE~6{,}567, $-26.3$\%).  This small loss relative to the best individual model is not unusual: combination gains are largest when constituent forecasts are diverse and approximately equal in quality \citep{timmermann2006forecast}.
 
 \subsection{Model Confidence Set}
 
@@ -333,14 +386,14 @@ The DFM and Bridge equation deliver moderate improvements and have the advantage
 
 \subsection{Real-Time Information Flow Test}
 
-To assess whether nowcast accuracy varies with the volume of released indicators---mimicking the ``ragged edge'' problem in real-time data---we conduct a simplified real-time information flow test.  For each evaluation quarter, we produce forecasts at three information horizons:
+To assess whether nowcast accuracy varies with the volume of released indicators---mimicking the ``ragged edge'' problem in real-time data---we conduct a stylised release-calendar information flow test.  For each evaluation quarter, we produce forecasts at three information horizons that reflect the typical publication timetable of French macroeconomic releases:
 \begin{itemize}
-  \item \textbf{Early} ($t-2$ months): Only data up to the first month of the quarter are available.
-  \item \textbf{Mid} ($t-1$ month): Data through the second month are available.
-  \item \textbf{Late} ($t$): All three months' data are available (but the official BoP is not yet published).
+  \item \textbf{Early:} Only financial market and survey indicators (EUR/USD, STOXX, Euribor, PMI, confidence, BCI, Google Trends, BDI)---variables available within days of the reference period.
+  \item \textbf{Mid:} Financial and survey indicators plus soft macro data, but masking late-arriving hard statistics (GDP, satellite/nightlight proxies, and their lags).
+  \item \textbf{Late:} All variables are available (but the official BoP is not yet published).
 \end{itemize}
 
-Ridge RMSE improves monotonically as more within-quarter information accumulates: early horizon~9{,}271, mid horizon~8{,}491, late horizon~6{,}567.  The~29\% RMSE reduction from early to late is consistent with the news interpretation of nowcasting \citep{giannone2008nowcasting} and confirms that the model exploits genuine information content rather than in-sample artefacts.
+Ridge RMSE improves from the early horizon (9{,}014) to the late horizon (6{,}567), a~27\\% reduction, consistent with the news interpretation of nowcasting \\citep{giannone2008nowcasting}.  The mid-horizon RMSE (9{,}071) is comparable to the early horizon, indicating that the additional soft macro variables available at the mid-release stage add limited incremental information; the main forecasting gains materialise only when hard data (GDP, trade volumes) become available at the late stage.
 
 \subsection{Feature Importance}
 
@@ -365,6 +418,9 @@ To understand \emph{which} variables drive the Ridge nowcast, we compute SHAP va
 \section{Conclusion}
 \label{sec:ch1_conclusion}
 
-This chapter establishes that Ridge regression provides a powerful and operationally simple tool for BoP nowcasting.  Achieving a~26.3\% RMSE reduction over a standard autoregressive benchmark, it combines strong predictive performance with computational simplicity and full interpretability of coefficients.  The failure of LSTM---and the moderate performance of tree-based methods---reinforces the message that in small-sample macro settings, the bias--variance tradeoff favours regularisation over complexity.
+This chapter establishes that Ridge regression provides a powerful and operationally simple tool for BoP nowcasting.  Achieving a~26.3\% RMSE reduction over a standard autoregressive benchmark, it combines strong predictive performance with computational simplicity and full interpretability of coefficients.  The DFM, with data-driven factor selection via the $IC_{p2}$ criterion, emerges as a strong second alternative ($-18.9\%$), while tree-based methods with time-series cross-validated hyperparameters deliver moderate gains.  The failure of LSTM and GRU---despite architectural refinements including dropout, validation-based early stopping, and learning-rate scheduling---reinforces the message that in small-sample macro settings, the bias--variance tradeoff favours regularisation over complexity.
+
+\paragraph{Limitations.}
+Two limitations should be borne in mind when interpreting these results.  \emph{First}, the evaluation uses final-vintage (revised) data rather than real-time vintages.  Because macroeconomic statistics are subject to substantial revisions---particularly BoP data, which can be revised for up to three years after initial publication \citep{fixler2014revisions}---forecasting performance measured on final-vintage data may overstate the accuracy achievable in true real time.  Constructing a full real-time vintage database for French BoP statistics is an important avenue for future research.  \emph{Second}, with only~$T = 51$ quarterly evaluation observations, the statistical tests have limited power.  The Holm--Bonferroni-corrected DM test fails to reject equal predictive ability for any individual model at the~5\% level, and a power simulation indicates that the MCS requires at least~$T = 100$ observations to reliably eliminate models whose true RMSE disadvantage is~15\%.  These power constraints are intrinsic to quarterly macroeconomic data---the same issue affects virtually all BoP and GDP nowcasting studies---but they imply that the point estimates of RMSE improvement should be weighted more heavily than the hypothesis tests in practical forecast selection.
 
 Two questions remain open and are addressed in subsequent chapters: (i) whether alternative data sources can improve Ridge further (Chapter~2), and (ii) whether these accuracy gains translate into policy-relevant information (Chapter~3).

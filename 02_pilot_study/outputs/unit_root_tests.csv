@@ -1,0 +1,20 @@
+variable,adf_stat,adf_pvalue,kpss_stat,kpss_pvalue,conclusion
+bop_ca,-1.95,0.3089,1.275,0.01,Unit root
+bop_goods,-0.284,0.9277,1.169,0.01,Unit root
+bop_services,-1.693,0.4349,1.349,0.01,Unit root
+eurusd,-2.261,0.1848,0.333,0.1,Inconclusive
+gdp,-0.256,0.9315,1.593,0.01,Unit root
+hicp,-1.824,0.3688,0.165,0.1,Inconclusive
+interest_rate,-1.926,0.3201,1.31,0.01,Unit root
+bop_ca_yoy,-7.564,0.0,0.067,0.1,Stationary
+bop_ca_qoq,-7.955,0.0,0.101,0.1,Stationary
+bop_goods_yoy,-1.142,0.6979,0.177,0.1,Inconclusive
+bop_goods_qoq,-1.944,0.3117,0.194,0.1,Inconclusive
+bop_services_yoy,-4.893,0.0,0.214,0.1,Stationary
+bop_services_qoq,-4.699,0.0001,0.199,0.1,Stationary
+gdp_yoy,-3.37,0.012,0.076,0.1,Stationary
+gdp_qoq,-10.73,0.0,0.083,0.1,Stationary
+gdp_growth,-2.666,0.08,0.21,0.1,Inconclusive
+bop_ca_lag1,-2.0,0.2866,1.424,0.01,Unit root
+bop_ca_lag2,-1.967,0.3014,1.403,0.01,Unit root
+bop_ca_lag4,-2.625,0.088,1.494,0.01,Unit root
