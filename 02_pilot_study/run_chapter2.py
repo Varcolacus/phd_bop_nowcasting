@@ -36,7 +36,7 @@ from download_data import (
     ecb_download_series, ecb_parse_csv,
 )
 from models import (
-    ForecastResult, ar_forecast, ols_forecast,
+    ForecastResult, ar_forecast, ols_forecast, lasso_forecast,
     gradient_boosting_forecast, xgboost_forecast, lstm_forecast,
     diebold_mariano_test, block_bootstrap_rmse_ci, OUTPUT_DIR,
     HAS_TORCH, HAS_SHAP,
@@ -243,6 +243,7 @@ def ablation_expanding_window(df, target_col, baseline_features, alt_features,
     models = {
         "AR(1)": ForecastResult("AR(1)"),
         "Ridge": ForecastResult("Ridge"),
+        "LASSO": ForecastResult("LASSO"),
     }
     if run_xgboost:
         models["XGBoost"] = ForecastResult("XGBoost")
@@ -270,6 +271,12 @@ def ablation_expanding_window(df, target_col, baseline_features, alt_features,
         models["Ridge"].predictions.append(p)
         models["Ridge"].actuals.append(y_test)
         models["Ridge"].dates.append(test_date)
+
+        # LASSO
+        p = lasso_forecast(X_train_scaled, y_train, X_test_scaled)
+        models["LASSO"].predictions.append(p)
+        models["LASSO"].actuals.append(y_test)
+        models["LASSO"].dates.append(test_date)
 
         # XGBoost
         if run_xgboost:
@@ -510,8 +517,8 @@ def main():
 
         all_results[spec_name] = models
 
-        # Store Ridge and XGBoost errors for GW tests
-        for mname in ["Ridge", "XGBoost"]:
+        # Store Ridge, LASSO and XGBoost errors for GW tests
+        for mname in ["Ridge", "LASSO", "XGBoost"]:
             if mname in models and models[mname].rmse is not None:
                 preds = np.array(models[mname].predictions, dtype=float)
                 acts = np.array(models[mname].actuals, dtype=float)
@@ -529,10 +536,11 @@ def main():
 
     # Get M0 RMSEs as benchmark
     m0_ridge_rmse = all_results.get("M0", {}).get("Ridge", ForecastResult("")).rmse
+    m0_lasso_rmse = all_results.get("M0", {}).get("LASSO", ForecastResult("")).rmse
     m0_xgb_rmse = all_results.get("M0", {}).get("XGBoost", ForecastResult("")).rmse
 
-    print(f"\n  {'Spec':<6} {'Ridge RMSE':>12} {'vs M0':>8} {'XGB RMSE':>12} {'vs M0':>8}")
-    print("  " + "-" * 50)
+    print(f"\n  {'Spec':<6} {'Ridge RMSE':>12} {'vs M0':>8} {'LASSO RMSE':>12} {'vs M0':>8} {'XGB RMSE':>12} {'vs M0':>8}")
+    print("  " + "-" * 70)
 
     summary_rows = []
     for spec_name in ["M0", "M1", "M2", "M3", "M4", "M5"]:
@@ -540,17 +548,21 @@ def main():
             continue
         models = all_results[spec_name]
         ridge_rmse = models.get("Ridge", ForecastResult("")).rmse
+        lasso_rmse = models.get("LASSO", ForecastResult("")).rmse
         xgb_rmse = models.get("XGBoost", ForecastResult("")).rmse
 
         ridge_vs = ((ridge_rmse - m0_ridge_rmse) / m0_ridge_rmse * 100) if ridge_rmse and m0_ridge_rmse else None
+        lasso_vs = ((lasso_rmse - m0_lasso_rmse) / m0_lasso_rmse * 100) if lasso_rmse and m0_lasso_rmse else None
         xgb_vs = ((xgb_rmse - m0_xgb_rmse) / m0_xgb_rmse * 100) if xgb_rmse and m0_xgb_rmse else None
 
         ridge_str = f"{ridge_rmse:,.0f}" if ridge_rmse else "N/A"
+        lasso_str = f"{lasso_rmse:,.0f}" if lasso_rmse else "N/A"
         xgb_str = f"{xgb_rmse:,.0f}" if xgb_rmse else "N/A"
         ridge_vs_str = f"{ridge_vs:+.1f}%" if ridge_vs is not None else "---"
+        lasso_vs_str = f"{lasso_vs:+.1f}%" if lasso_vs is not None else "---"
         xgb_vs_str = f"{xgb_vs:+.1f}%" if xgb_vs is not None else "---"
 
-        print(f"  {spec_name:<6} {ridge_str:>12} {ridge_vs_str:>8} {xgb_str:>12} {xgb_vs_str:>8}")
+        print(f"  {spec_name:<6} {ridge_str:>12} {ridge_vs_str:>8} {lasso_str:>12} {lasso_vs_str:>8} {xgb_str:>12} {xgb_vs_str:>8}")
 
         summary_rows.append({
             "specification": spec_name,
@@ -560,6 +572,8 @@ def main():
             }.get(spec_name, ""),
             "ridge_rmse": ridge_rmse,
             "ridge_vs_m0_pct": ridge_vs,
+            "lasso_rmse": lasso_rmse,
+            "lasso_vs_m0_pct": lasso_vs,
             "xgboost_rmse": xgb_rmse,
             "xgboost_vs_m0_pct": xgb_vs,
         })
@@ -573,7 +587,7 @@ def main():
     print("  " + "-" * 65)
 
     for spec_name in ["M1", "M2", "M3", "M4", "M5"]:
-        for mname in ["Ridge", "XGBoost"]:
+        for mname in ["Ridge", "LASSO", "XGBoost"]:
             key_m0 = ("M0", mname)
             key_mk = (spec_name, mname)
             if key_m0 not in spec_errors or key_mk not in spec_errors:
@@ -600,16 +614,11 @@ def main():
             # Add to summary
             for row in summary_rows:
                 if row["specification"] == spec_name:
-                    if mname == "Ridge":
-                        row["ridge_dm_stat"] = dm_stat
-                        row["ridge_dm_p"] = dm_p
-                        row["ridge_gw_stat"] = gw_stat
-                        row["ridge_gw_p"] = gw_p
-                    else:
-                        row["xgboost_dm_stat"] = dm_stat
-                        row["xgboost_dm_p"] = dm_p
-                        row["xgboost_gw_stat"] = gw_stat
-                        row["xgboost_gw_p"] = gw_p
+                    prefix = mname.lower().replace("(", "").replace(")", "")
+                    row[f"{prefix}_dm_stat"] = dm_stat
+                    row[f"{prefix}_dm_p"] = dm_p
+                    row[f"{prefix}_gw_stat"] = gw_stat
+                    row[f"{prefix}_gw_p"] = gw_p
 
     # ---------------------------------------------------------------
     # Phase 7b: Bootstrap confidence intervals for ablation
@@ -648,16 +657,12 @@ def main():
             aligned_bench = ForecastResult("M0_Ridge")
             aligned_bench.actuals = [m0_ridge.actuals[i] for i in common_m0]
             aligned_bench.predictions = [m0_ridge.predictions[i] for i in common_m0]
-            _ab_preds = np.array(aligned_bench.predictions, dtype=float)
-            _ab_acts = np.array(aligned_bench.actuals, dtype=float)
-            aligned_bench.rmse = float(np.sqrt(np.mean((_ab_acts - _ab_preds) ** 2)))
+            aligned_bench.rmse = m0_ridge.rmse
 
             aligned_model = ForecastResult(f"{spec_name}_Ridge")
             aligned_model.actuals = [mk_ridge.actuals[i] for i in common_mk]
             aligned_model.predictions = [mk_ridge.predictions[i] for i in common_mk]
-            _am_preds = np.array(aligned_model.predictions, dtype=float)
-            _am_acts = np.array(aligned_model.actuals, dtype=float)
-            aligned_model.rmse = float(np.sqrt(np.mean((_am_acts - _am_preds) ** 2)))
+            aligned_model.rmse = mk_ridge.rmse
 
             virtual = {"M0_Ridge": aligned_bench, f"{spec_name}_Ridge": aligned_model}
 

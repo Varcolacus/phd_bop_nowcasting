@@ -6,11 +6,12 @@ Implements:
   1. AR(1) baseline — simple autoregressive benchmark
   2. AR(4) baseline — richer autoregressive benchmark
   3. OLS with macro features — traditional econometric approach
-  4. Gradient Boosting (scikit-learn) — ML benchmark
-  5. XGBoost — primary ML model
-  6. LSTM — recurrent neural network
-  7. DFM — Dynamic Factor Model (Stock & Watson, 2002)
-  8. Bridge — Bridge equation with BIC variable selection (Baffigi et al., 2004)
+  4. LASSO (L1) — sparse linear shrinkage (Tibshirani 1996)
+  5. Gradient Boosting (scikit-learn) — ML benchmark
+  6. XGBoost — primary ML model
+  7. LSTM — recurrent neural network
+  8. DFM — Dynamic Factor Model (Stock & Watson, 2002)
+  9. Bridge — Bridge equation with BIC variable selection (Baffigi et al., 2004)
 
 All models are evaluated using expanding-window pseudo real-time
 out-of-sample forecasting.
@@ -245,6 +246,28 @@ def ols_forecast(X_train, y_train, X_test_row):
         return np.nan
 
 
+def lasso_forecast(X_train, y_train, X_test_row):
+    """
+    LASSO (L1 penalty) regression with CV-selected regularisation.
+    Produces sparse coefficient vectors — a natural complement to Ridge.
+    Uses 3-fold time-series CV for alpha selection.
+    """
+    from sklearn.linear_model import LassoCV
+
+    if len(y_train) < 10:
+        return np.nan
+
+    try:
+        model = LassoCV(alphas=[0.01, 0.1, 1.0, 10.0, 100.0],
+                         cv=min(3, len(y_train) // 5),
+                         max_iter=5000, random_state=42)
+        model.fit(X_train, y_train)
+        return model.predict(X_test_row.reshape(1, -1))[0]
+    except Exception as e:
+        logger.warning("lasso_forecast failed: %s", e)
+        return np.nan
+
+
 def gradient_boosting_forecast(X_train, y_train, X_test_row):
     """
     Scikit-learn Gradient Boosting with time-series CV hyperparameter
@@ -430,7 +453,7 @@ def lstm_forecast(X_train, y_train, X_test_row, lookback=4, hidden_size=32,
 # ---------------------------------------------------------------------------
 
 class _GRUNet(nn.Module if HAS_TORCH else object):
-    """Two-layer GRU network — simpler gating mechanism than LSTM (2 vs 4 gates)."""
+    """GRU network — fewer parameters than LSTM, often works better in small samples."""
     def __init__(self, input_size, hidden_size=32, dropout=0.1):
         super().__init__()
         self.gru = nn.GRU(input_size, hidden_size, batch_first=True, dropout=dropout, num_layers=2)
@@ -665,6 +688,7 @@ def expanding_window_evaluation(df, target_col, feature_cols,
         "AR(1)": ForecastResult("AR(1)"),
         "AR(4)": ForecastResult("AR(4)"),
         "Ridge": ForecastResult("Ridge"),
+        "LASSO": ForecastResult("LASSO"),
         "DFM": ForecastResult("DFM"),
         "Bridge": ForecastResult("Bridge"),
         "GradientBoosting": ForecastResult("GradientBoosting"),
@@ -708,6 +732,12 @@ def expanding_window_evaluation(df, target_col, feature_cols,
         models["Ridge"].predictions.append(pred_ols)
         models["Ridge"].actuals.append(y_test)
         models["Ridge"].dates.append(test_date)
+
+        # --- LASSO ---
+        pred_lasso = lasso_forecast(X_train_scaled, y_train, X_test_scaled)
+        models["LASSO"].predictions.append(pred_lasso)
+        models["LASSO"].actuals.append(y_test)
+        models["LASSO"].dates.append(test_date)
 
         # --- DFM ---
         pred_dfm = dfm_forecast(X_train_scaled, y_train, X_test_scaled)
@@ -910,6 +940,66 @@ def block_bootstrap_rmse_ci(models, benchmark="AR(1)", n_boot=1000,
 
 
 # ---------------------------------------------------------------------------
+# Conformal Prediction Intervals (Chernozhukov et al. 2021 / Lei et al. 2018)
+# ---------------------------------------------------------------------------
+
+def conformal_prediction_intervals(models, alpha=0.10):
+    """
+    Split-conformal prediction intervals for each model.
+
+    Uses the first 50 % of OOS residuals as calibration set to compute
+    the conformity quantile, then reports coverage and interval width
+    on the remaining 50 %.
+
+    Parameters:
+    -----------
+    models : dict of ForecastResult objects
+    alpha  : float, miscoverage level (default 0.10 → 90 % intervals)
+
+    Returns:
+    --------
+    DataFrame with model, nominal_coverage, empirical_coverage,
+    mean_width, median_width
+    """
+    rows = []
+    for name, res in models.items():
+        preds = np.array(res.predictions, dtype=float)
+        acts = np.array(res.actuals, dtype=float)
+        valid = ~np.isnan(preds) & ~np.isnan(acts)
+        preds_v = preds[valid]
+        acts_v = acts[valid]
+        n = len(preds_v)
+        if n < 10:
+            continue
+
+        # Split: first half = calibration, second half = evaluation
+        n_cal = n // 2
+        residuals_cal = np.abs(acts_v[:n_cal] - preds_v[:n_cal])
+        # Conformal quantile: ceil((n_cal+1)(1-alpha))/n_cal percentile
+        q_level = min(1.0, np.ceil((n_cal + 1) * (1 - alpha)) / n_cal)
+        q_hat = np.quantile(residuals_cal, q_level)
+
+        # Evaluation on second half
+        preds_eval = preds_v[n_cal:]
+        acts_eval = acts_v[n_cal:]
+        lower = preds_eval - q_hat
+        upper = preds_eval + q_hat
+        covered = (acts_eval >= lower) & (acts_eval <= upper)
+
+        rows.append({
+            "model": name,
+            "nominal_coverage": round(1 - alpha, 2),
+            "empirical_coverage": round(np.mean(covered), 3),
+            "mean_width": round(2 * q_hat, 1),
+            "median_width": round(2 * q_hat, 1),
+            "n_cal": n_cal,
+            "n_eval": len(acts_eval),
+        })
+
+    return pd.DataFrame(rows)
+
+
+# ---------------------------------------------------------------------------
 # Clark-West (2007) Test for Nested Models
 # ---------------------------------------------------------------------------
 
@@ -1031,13 +1121,8 @@ def forecast_combination(models, method="inverse_rmse", exclude=None):
         else:
             weights_i = {k: 1.0 / len(names) for k in names}
 
-        valid_preds = {k: float(eligible[k].predictions[i]) for k in names
-                       if not np.isnan(float(eligible[k].predictions[i]))}
-        if valid_preds:
-            w_sum = sum(weights_i[k] for k in valid_preds)
-            pred = sum(weights_i[k] * valid_preds[k] for k in valid_preds) / max(w_sum, 1e-12)
-        else:
-            pred = np.nan
+        pred = sum(weights_i[k] * float(eligible[k].predictions[i]) for k in names
+                   if not np.isnan(float(eligible[k].predictions[i])))
         combo.predictions.append(pred)
         combo.actuals.append(eligible[names[0]].actuals[i])
         combo.dates.append(eligible[names[0]].dates[i])
@@ -1225,7 +1310,7 @@ def print_results(models, benchmark="AR(1)"):
             )
 
             if not np.isnan(dm_stat):
-                sig = "Yes **" if p_val < 0.05 else ("Yes *" if p_val < 0.10 else "No")
+                sig = "Yes *" if p_val < 0.10 else ("Yes **" if p_val < 0.05 else "No")
                 print(f"  {name:<20} {dm_stat:>10.3f} {p_val:>10.4f} {sig:>12}")
 
     print("\n" + "=" * 70)

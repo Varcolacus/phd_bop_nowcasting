@@ -68,7 +68,7 @@ $\Delta\log$ = first difference of natural logarithm.  $\Delta$ = first differen
 \section{Model Hyperparameters}
 \label{app:hyperparams}
 
-Table~\ref{tab:app_hyperparams} reports the hyperparameter settings for all nine models evaluated in Chapter~1.
+Table~\ref{tab:app_hyperparams} reports the hyperparameter settings for all ten models evaluated in Chapter~1.
 
 \begin{table}[htbp]
 \centering
@@ -88,6 +88,8 @@ DFM & Number of factors $k$ selected automatically at each expanding-window step
 Bridge & BIC-based stepwise predictor selection (forward entry from all available monthly indicators).  Quarterly target regressed on quarterly average of selected predictor(s).  OLS estimation. \\
 \addlinespace
 Ridge & $\ell_2$ penalty, $\alpha$ selected by efficient leave-one-out cross-validation from $\{0.01, 0.1, 1, 10, 100\}$.  Features standardised (zero mean, unit variance). \\
+\addlinespace
+LASSO & $\ell_1$ penalty, $\alpha$ selected by 3-fold \texttt{TimeSeriesSplit} cross-validation from $\{0.01, 0.1, 1, 10, 100\}$.  \texttt{max\_iter}$= 5000$.  Features standardised (zero mean, unit variance) \citep{tibshirani1996regression}. \\
 \addlinespace
 Gradient Boosting & Hyperparameters selected by 3-fold \texttt{TimeSeriesSplit} cross-validation at each expanding-window step over a grid: \texttt{learning\_rate} $\in \{0.05, 0.1\}$, \texttt{max\_depth} $\in \{3, 5\}$, \texttt{n\_estimators} $\in \{100, 200\}$.  \texttt{min\_samples\_leaf}$= 5$. \\
 \addlinespace

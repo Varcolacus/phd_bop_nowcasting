@@ -107,7 +107,7 @@ M5 (Full) & M0 + A + B + C + D \\
 \end{tabular}
 \end{table}
 
-All models use Ridge regression with leave-one-out CV for $\alpha$ selection, as in Chapter~1.
+All models use Ridge and LASSO regression with cross-validated $\alpha$ selection, as in Chapter~1.
 
 \subsection{Evaluation Protocol}
 
@@ -185,7 +185,7 @@ Critically, the M5 confidence interval is concentrated below zero: the point est
 
 \subsection{Model Confidence Set}
 
-We apply the \citet{hansen2011model} MCS procedure at the~10\% level across all specification$\times$model combinations (M0--M5 evaluated with AR(1), Ridge, and XGBoost---18 candidates in total).  All 18 candidates survive.  A Monte Carlo power analysis confirms that this is primarily a \emph{power} limitation: simulating $500$ replications of a DGP where Model~B is $7.7$\% better than Model~A at $T = 108$ and applying the block-bootstrap MCS test at $\alpha = 0.10$ yields an empirical power of only~$30.6$\%.  Put differently, even with a substantial true RMSE gap, the MCS has less than a one-in-three chance of rejection given our sample size.  The elimination order nonetheless ranks M5~Ridge first and M4~AR(1) last, consistent with the pairwise DM results.
+We apply the \citet{hansen2011model} MCS procedure at the~10\% level across all specification$\times$model combinations (M0--M5 evaluated with AR(1), Ridge, LASSO, and XGBoost---24 candidates in total).  All 18 candidates survive.  A Monte Carlo power analysis confirms that this is primarily a \emph{power} limitation: simulating $500$ replications of a DGP where Model~B is $7.7$\% better than Model~A at $T = 108$ and applying the block-bootstrap MCS test at $\alpha = 0.10$ yields an empirical power of only~$30.6$\%.  Put differently, even with a substantial true RMSE gap, the MCS has less than a one-in-three chance of rejection given our sample size.  The elimination order nonetheless ranks M5~Ridge first and M4~AR(1) last, consistent with the pairwise DM results.
 
 \subsection{Giacomini--Rossi Fluctuation Test}
 

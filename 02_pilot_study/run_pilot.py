@@ -362,6 +362,7 @@ def main():
         clark_west_test, r2_oos, forecast_combination,
         diebold_mariano_test, model_confidence_set,
         load_modeling_data, expanding_window_evaluation,
+        conformal_prediction_intervals,
         ForecastResult, OUTPUT_DIR,
     )
     run_models()
@@ -380,6 +381,35 @@ def main():
                             ForecastResult)
     except Exception as e:
         print(f"  [WARN] Enhanced tests failed: {e}")
+
+    # -- Step 2a-iv: Conformal Prediction Intervals --
+    print("\n\n" + "#" * 60)
+    print("  STEP 2a-iv: CONFORMAL PREDICTION INTERVALS")
+    print("#" * 60)
+
+    try:
+        import pandas as _cpd
+        forecast_df_cp = _cpd.read_csv(OUTPUT_DIR / "forecast_results.csv",
+                                       parse_dates=["date"])
+        fr_cp = {}
+        for mname in forecast_df_cp["model"].unique():
+            sub = forecast_df_cp[forecast_df_cp["model"] == mname].sort_values("date")
+            fr = ForecastResult(mname)
+            fr.predictions = sub["predicted"].tolist()
+            fr.actuals = sub["actual"].tolist()
+            fr.dates = sub["date"].tolist()
+            fr_cp[mname] = fr
+        conf_df = conformal_prediction_intervals(fr_cp, alpha=0.10)
+        if not conf_df.empty:
+            conf_df.to_csv(OUTPUT_DIR / "conformal_intervals.csv", index=False)
+            print(f"  Saved conformal_intervals.csv")
+            print(f"  {'Model':<20} {'Nominal':>8} {'Empirical':>10} {'Width':>8}")
+            print("  " + "-" * 50)
+            for _, r in conf_df.iterrows():
+                print(f"  {r['model']:<20} {r['nominal_coverage']:>8.0%}"
+                      f" {r['empirical_coverage']:>10.1%} {r['mean_width']:>8,.0f}")
+    except Exception as e:
+        print(f"  [WARN] Conformal intervals failed: {e}")
 
     # -- Step 2a-ii: Sub-Period RMSE Breakdown --
     print("\n\n" + "#" * 60)

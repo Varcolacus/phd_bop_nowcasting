@@ -45,7 +45,7 @@ from download_data import (
     ecb_download_series, ecb_parse_csv,
 )
 from models import (
-    ForecastResult, ar_forecast, ols_forecast, xgboost_forecast,
+    ForecastResult, ar_forecast, ols_forecast, lasso_forecast, xgboost_forecast,
     diebold_mariano_test, block_bootstrap_rmse_ci, OUTPUT_DIR, StandardScaler,
     clark_west_test, r2_oos,
 )
@@ -249,6 +249,7 @@ def expanding_window_forecast(df, target_col, feature_cols,
     models = {
         "AR(1)": ForecastResult("AR(1)"),
         "Ridge": ForecastResult("Ridge"),
+        "LASSO": ForecastResult("LASSO"),
         "XGBoost": ForecastResult("XGBoost"),
     }
     scaler = StandardScaler()
@@ -262,6 +263,7 @@ def expanding_window_forecast(df, target_col, feature_cols,
         X_te = scaler.transform(X_test.reshape(1, -1)).flatten()
 
         for mname, func in [("AR(1)", None), ("Ridge", ols_forecast),
+                             ("LASSO", lasso_forecast),
                              ("XGBoost", xgboost_forecast)]:
             if func is None:
                 p = ar_forecast(y_train, order=1)
