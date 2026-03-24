@@ -358,6 +358,8 @@ def lstm_forecast(X_train, y_train, X_test_row, lookback=4, hidden_size=32,
     if len(y_train) < lookback + 10:
         return np.nan
 
+    torch.manual_seed(42)
+
     try:
         # Build sequences
         X_seq, y_seq = [], []
@@ -448,26 +450,10 @@ def gru_forecast(X_train, y_train, X_test_row, lookback=4, hidden_size=32,
     if len(y_train) < lookback + 10:
         return np.nan
 
+    torch.manual_seed(42)
+
     try:
         X_seq, y_seq = [], []
-        for i in range(lookback, len(y_train)):
-            X_seq.append(X_train[i - lookback:i])
-            y_seq.append(y_train[i])
-        X_seq = np.array(X_seq, dtype=np.float32)
-        y_seq = np.array(y_seq, dtype=np.float32)
-
-        # Train / validation split (last 20 %)
-        n_seq = len(y_seq)
-        n_val = max(2, int(0.2 * n_seq))
-        X_tr, X_val = X_seq[:-n_val], X_seq[-n_val:]
-        y_tr, y_val = y_seq[:-n_val], y_seq[-n_val:]
-
-        X_t = torch.from_numpy(X_tr)
-        y_t = torch.from_numpy(y_tr)
-        X_v = torch.from_numpy(X_val)
-        y_v = torch.from_numpy(y_val)
-
-        model = _GRUNet(X_train.shape[1], hidden_size)
         optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=1e-4)
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer, patience=5, factor=0.5)

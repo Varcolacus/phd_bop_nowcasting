@@ -353,7 +353,7 @@ def crisis_episode_metrics(models, episodes=None):
             if pre_valid.sum() >= 2:
                 pre_rmse = np.sqrt(np.mean((acts[pre_valid] - preds[pre_valid]) ** 2))
             else:
-                pre_rmse = ep_rmse * 2  # fallback: generous threshold
+                pre_rmse = np.nan  # no valid pre-crisis data; skip adaptation metric
 
             # Count periods from episode start until 2 consecutive
             # periods with |error| < pre-crisis RMSE
@@ -727,14 +727,14 @@ def run_transfer_learning(country_data, country_models):
             "vs_ar1_pct": vs_ar,
         })
 
-        # --- (b) Fine-tuned: use first 30% of target to re-estimate ---
-        ft_split = max(20, int(len(y_cc) * 0.3))
-        X_ft = np.vstack([X_fr_scaled, scaler_fr.transform(X_cc[:ft_split])])
-        y_ft = np.concatenate([y_fr, y_cc[:ft_split]])
+        # --- (b) Fine-tuned: augment French data with first half of target ---
+        # Use same test set as direct transfer (last 50%) for comparability
+        X_ft = np.vstack([X_fr_scaled, scaler_fr.transform(X_cc[:split])])
+        y_ft = np.concatenate([y_fr, y_cc[:split]])
         ft_ridge = Ridge(alpha=1.0)
         ft_ridge.fit(X_ft, y_ft)
-        preds_ft = ft_ridge.predict(scaler_fr.transform(X_cc[ft_split:]))
-        ft_rmse = np.sqrt(np.mean((y_cc[ft_split:] - preds_ft) ** 2))
+        preds_ft = ft_ridge.predict(scaler_fr.transform(X_cc[split:]))
+        ft_rmse = np.sqrt(np.mean((y_cc[split:] - preds_ft) ** 2))
         vs_ar = ((ft_rmse - ar_rmse_cc) / ar_rmse_cc * 100) if (
             ar_rmse_cc and ar_rmse_cc > 0
         ) else np.nan
@@ -1388,10 +1388,10 @@ def asymmetric_delta_test(df_fr, models_fr):
             c_t, _ = hpfilter(y_tg[:t], lamb=129600)
             cycle_os[t - 1] = c_t[-1]
         trend_approx = y_tg - cycle_os
-        df_tr["output_gap"] = cycle_os / (np.abs(trend_approx) + 1) * 100
+        df_tr["output_gap"] = cycle_os / np.maximum(np.abs(trend_approx), 1.0) * 100
     except Exception:
         trend = df_tr["trade_goods"].rolling(24, min_periods=12, center=False).mean()
-        df_tr["output_gap"] = (df_tr["trade_goods"] - trend) / (trend.abs() + 1) * 100
+        df_tr["output_gap"] = (df_tr["trade_goods"] - trend) / trend.abs().clip(lower=1.0) * 100
 
     ca_mean = df_tr["trade_goods"].rolling(60, min_periods=24).mean()
     ca_std = df_tr["trade_goods"].rolling(60, min_periods=24).std()
@@ -1428,8 +1428,10 @@ def asymmetric_delta_test(df_fr, models_fr):
 
     # Wald test: H0: δ_deter = δ_improv
     diff = delta_deter - delta_improv
-    # Approximate SE of difference (ignoring covariance — conservative)
-    se_diff = np.sqrt(se_deter**2 + se_improv**2)
+    # Use full HAC variance-covariance matrix for proper inference
+    R = np.array([0, 0, 0, 1, -1])  # contrast: β3 - β4
+    V = model.cov_params()
+    se_diff = np.sqrt(R @ V @ R)
     wald_stat = (diff / se_diff) ** 2 if se_diff > 1e-10 else 0.0
     from scipy.stats import chi2
     p_wald = 1 - chi2.cdf(wald_stat, df=1)
@@ -1515,10 +1517,10 @@ def svensson_optimal_policy(df_fr, models_fr):
             c_t, _ = hpfilter(y_tg_sv[:t], lamb=129600)
             cycle_sv[t - 1] = c_t[-1]
         trend_sv = y_tg_sv - cycle_sv
-        output_gap = cycle_sv / (np.abs(trend_sv) + 1) * 100
+        output_gap = cycle_sv / np.maximum(np.abs(trend_sv), 1.0) * 100
     except Exception:
         trend_rv = df_sv["trade_goods"].rolling(24, min_periods=12, center=False).mean()
-        output_gap = (df_sv["trade_goods"] - trend_rv) / (trend_rv.abs() + 1) * 100
+        output_gap = (df_sv["trade_goods"] - trend_rv) / trend_rv.abs().clip(lower=1.0) * 100
 
     L_y = lambda_y * output_gap ** 2
 

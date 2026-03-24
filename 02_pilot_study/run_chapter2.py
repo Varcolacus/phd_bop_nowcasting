@@ -737,15 +737,15 @@ def main():
             e5v = e_m5[valid_gr]
             T = len(e0v)
 
-            # Rolling DM statistic with centered window
+            # Rolling DM statistic with one-sided (backward-looking) window
+            # per Giacomini & Rossi (2010) — no future information used
             window_size = max(20, T // 4)
-            half_w = window_size // 2
             rolling_dm = []
             rolling_idx = []
             from scipy import stats as _stats
 
-            for t in range(half_w, T - half_w):
-                d_t = e0v[t - half_w:t + half_w] ** 2 - e5v[t - half_w:t + half_w] ** 2
+            for t in range(window_size, T):
+                d_t = e0v[t - window_size:t] ** 2 - e5v[t - window_size:t] ** 2
                 mean_d = d_t.mean()
                 var_d = d_t.var(ddof=1)
                 if var_d > 0:
@@ -810,12 +810,11 @@ def main():
             d_t = e0 ** 2 - e5 ** 2  # loss differential
 
             # --- (a) Sup-type test (Rossi 2013, §3.2) ---
-            # Supremum of absolute rolling DM statistic
+            # Supremum of absolute rolling DM statistic (one-sided window)
             w = max(20, T_oos // 4)
-            hw = w // 2
             roll_dm = []
-            for t in range(hw, T_oos - hw):
-                d_w = d_t[t - hw:t + hw]
+            for t in range(w, T_oos):
+                d_w = d_t[t - w:t]
                 mu = d_w.mean()
                 sig = d_w.std(ddof=1)
                 roll_dm.append(mu / (sig / np.sqrt(len(d_w))) if sig > 0 else 0.0)
@@ -834,8 +833,8 @@ def main():
                                        for s in starts])[:T_oos]
                 d_b = d_t[idx]
                 roll_b = []
-                for t in range(hw, T_oos - hw):
-                    d_w = d_b[t - hw:t + hw]
+                for t in range(w, T_oos):
+                    d_w = d_b[t - w:t]
                     mu = d_w.mean()
                     sig = d_w.std(ddof=1)
                     roll_b.append(mu / (sig / np.sqrt(len(d_w))) if sig > 0 else 0.0)
