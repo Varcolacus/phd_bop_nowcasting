@@ -648,12 +648,16 @@ def main():
             aligned_bench = ForecastResult("M0_Ridge")
             aligned_bench.actuals = [m0_ridge.actuals[i] for i in common_m0]
             aligned_bench.predictions = [m0_ridge.predictions[i] for i in common_m0]
-            aligned_bench.rmse = m0_ridge.rmse
+            _ab_preds = np.array(aligned_bench.predictions, dtype=float)
+            _ab_acts = np.array(aligned_bench.actuals, dtype=float)
+            aligned_bench.rmse = float(np.sqrt(np.mean((_ab_acts - _ab_preds) ** 2)))
 
             aligned_model = ForecastResult(f"{spec_name}_Ridge")
             aligned_model.actuals = [mk_ridge.actuals[i] for i in common_mk]
             aligned_model.predictions = [mk_ridge.predictions[i] for i in common_mk]
-            aligned_model.rmse = mk_ridge.rmse
+            _am_preds = np.array(aligned_model.predictions, dtype=float)
+            _am_acts = np.array(aligned_model.actuals, dtype=float)
+            aligned_model.rmse = float(np.sqrt(np.mean((_am_acts - _am_preds) ** 2)))
 
             virtual = {"M0_Ridge": aligned_bench, f"{spec_name}_Ridge": aligned_model}
 

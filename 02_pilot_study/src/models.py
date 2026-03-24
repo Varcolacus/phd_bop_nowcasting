@@ -430,7 +430,7 @@ def lstm_forecast(X_train, y_train, X_test_row, lookback=4, hidden_size=32,
 # ---------------------------------------------------------------------------
 
 class _GRUNet(nn.Module if HAS_TORCH else object):
-    """GRU network — fewer parameters than LSTM, often works better in small samples."""
+    """Two-layer GRU network — simpler gating mechanism than LSTM (2 vs 4 gates)."""
     def __init__(self, input_size, hidden_size=32, dropout=0.1):
         super().__init__()
         self.gru = nn.GRU(input_size, hidden_size, batch_first=True, dropout=dropout, num_layers=2)
@@ -1031,8 +1031,13 @@ def forecast_combination(models, method="inverse_rmse", exclude=None):
         else:
             weights_i = {k: 1.0 / len(names) for k in names}
 
-        pred = sum(weights_i[k] * float(eligible[k].predictions[i]) for k in names
-                   if not np.isnan(float(eligible[k].predictions[i])))
+        valid_preds = {k: float(eligible[k].predictions[i]) for k in names
+                       if not np.isnan(float(eligible[k].predictions[i]))}
+        if valid_preds:
+            w_sum = sum(weights_i[k] for k in valid_preds)
+            pred = sum(weights_i[k] * valid_preds[k] for k in valid_preds) / max(w_sum, 1e-12)
+        else:
+            pred = np.nan
         combo.predictions.append(pred)
         combo.actuals.append(eligible[names[0]].actuals[i])
         combo.dates.append(eligible[names[0]].dates[i])
@@ -1220,7 +1225,7 @@ def print_results(models, benchmark="AR(1)"):
             )
 
             if not np.isnan(dm_stat):
-                sig = "Yes *" if p_val < 0.10 else ("Yes **" if p_val < 0.05 else "No")
+                sig = "Yes **" if p_val < 0.05 else ("Yes *" if p_val < 0.10 else "No")
                 print(f"  {name:<20} {dm_stat:>10.3f} {p_val:>10.4f} {sig:>12}")
 
     print("\n" + "=" * 70)
