@@ -77,7 +77,9 @@ def _ts_cv_score(X_train, y_train, model_cls, params, n_splits=3):
             model.fit(X_tr, y_tr)
             preds = model.predict(X_val)
             scores.append(np.mean((y_val - preds) ** 2))
-        except Exception:
+        except Exception as e:
+            import warnings
+            warnings.warn(f"TSCV fold failed: {e}", RuntimeWarning)
             scores.append(float('inf'))
     return np.mean(scores)
 
@@ -1004,18 +1006,29 @@ def forecast_combination(models, method="inverse_rmse", exclude=None):
     n = min(len(v.predictions) for v in eligible.values())
     names = list(eligible.keys())
 
-    if method == "equal":
-        weights = {k: 1.0 / len(names) for k in names}
-    elif method == "inverse_rmse":
-        inv_rmse = {k: 1.0 / v.rmse for k, v in eligible.items()}
-        total = sum(inv_rmse.values())
-        weights = {k: v / total for k, v in inv_rmse.items()}
-    else:
-        weights = {k: 1.0 / len(names) for k in names}
-
     combo = ForecastResult("Combination")
     for i in range(n):
-        pred = sum(weights[k] * float(eligible[k].predictions[i]) for k in names
+        if method == "equal":
+            weights_i = {k: 1.0 / len(names) for k in names}
+        elif method == "inverse_rmse" and i >= 1:
+            # Expanding weights: only use RMSE accumulated through t-1
+            inv_rmse_i = {}
+            for k, v in eligible.items():
+                past_preds = np.array(v.predictions[:i], dtype=float)
+                past_acts = np.array(v.actuals[:i], dtype=float)
+                valid = ~np.isnan(past_preds) & ~np.isnan(past_acts)
+                if valid.sum() >= 1:
+                    rmse_k = np.sqrt(np.mean((past_acts[valid] - past_preds[valid]) ** 2))
+                    inv_rmse_i[k] = 1.0 / max(rmse_k, 1e-12)
+            if inv_rmse_i:
+                total = sum(inv_rmse_i.values())
+                weights_i = {k: inv_rmse_i.get(k, 0) / total for k in names}
+            else:
+                weights_i = {k: 1.0 / len(names) for k in names}
+        else:
+            weights_i = {k: 1.0 / len(names) for k in names}
+
+        pred = sum(weights_i[k] * float(eligible[k].predictions[i]) for k in names
                    if not np.isnan(float(eligible[k].predictions[i])))
         combo.predictions.append(pred)
         combo.actuals.append(eligible[names[0]].actuals[i])

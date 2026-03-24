@@ -194,10 +194,12 @@ def giacomini_white_test(e1, e2, instruments=None):
         # Newey-West HAC covariance with automatic bandwidth
         # Bandwidth: floor(4*(T/100)^(2/9)) per Newey & West (1994)
         bw = max(1, int(4.0 * (n_t / 100.0) ** (2.0 / 9.0)))
-        S = (zd.T @ zd) / n_t
+        # Demean zd before computing autocovariances (standard Newey-West)
+        zd_centered = zd - zd.mean(axis=0)
+        S = (zd_centered.T @ zd_centered) / n_t
         for h in range(1, bw + 1):
             w = 1.0 - h / (bw + 1.0)  # Bartlett kernel weight
-            gamma_h = (zd[h:].T @ zd[:-h]) / n_t
+            gamma_h = (zd_centered[h:].T @ zd_centered[:-h]) / n_t
             S = S + w * (gamma_h + gamma_h.T)
 
         S_inv = np.linalg.inv(S)
@@ -454,16 +456,13 @@ def main():
     df = merge_alternative_with_baseline(df, alt_data)
     df = prepare_baseline_features(df, target=target_col)
     # Forward-fill sparse alternative data (e.g., ecb_sentiment with limited obs)
-    # then fill remaining NaN with training-set median (not zero, since zero has
-    # meaning for bounded indicators like sentiment on [-1,+1])
+    # NaN imputation deferred to inside the expanding window to avoid look-ahead
     alt_cols = [c for c in df.columns if c not in
                 ["date", target_col] + [f"{target_col}_lag1", f"{target_col}_lag3",
                  f"{target_col}_lag12", "eurusd", "hicp", "interest_rate",
                  "eurusd_lag1", "hicp_lag1", "interest_rate_lag1"]]
     for c in alt_cols:
         df[c] = df[c].ffill()
-        col_median = df[c].median()
-        df[c] = df[c].fillna(col_median if not np.isnan(col_median) else 0)
     df = df.dropna(subset=[target_col]).reset_index(drop=True)
 
     print(f"\n  Combined dataset: {df.shape[0]} months x {df.shape[1]} columns")
@@ -823,12 +822,16 @@ def main():
             roll_dm = np.array(roll_dm)
 
             sup_dm = np.max(np.abs(roll_dm))
-            # Bootstrap p-value for the sup statistic
+            # Block bootstrap p-value (preserves serial dependence)
             rng = np.random.default_rng(42)
             n_boot = 2000
+            block_len = max(4, T_oos // 10)  # block length ≈ 10% of sample
+            n_blocks = int(np.ceil(T_oos / block_len))
             sup_boot = np.empty(n_boot)
             for b in range(n_boot):
-                idx = rng.choice(T_oos, size=T_oos, replace=True)
+                starts = rng.integers(0, max(1, T_oos - block_len + 1), size=n_blocks)
+                idx = np.concatenate([np.arange(s, min(s + block_len, T_oos))
+                                       for s in starts])[:T_oos]
                 d_b = d_t[idx]
                 roll_b = []
                 for t in range(hw, T_oos - hw):
@@ -1024,7 +1027,7 @@ def main():
     print("  PSEUDO-REAL-TIME VINTAGE ROBUSTNESS")
     print("=" * 70)
     print("  Simulating data revisions (Eurostat revision statistics):")
-    print("  Gaussian noise, std = 3% of level, applied to trade_goods target")
+    print("  AR(1) correlated noise, std = 3% of level, applied to trade_goods target")
 
     vintage_rows = []
     n_mc = 50
@@ -1032,11 +1035,18 @@ def main():
 
     target_std = df[target_col].std()
     revision_sigma = revision_std_frac * df[target_col].abs().mean()
+    rho_revision = 0.7  # AR(1) persistence of revision noise
 
     np.random.seed(2026)
     for mc_iter in range(n_mc):
         df_noisy = df.copy()
-        noise = np.random.normal(0, revision_sigma, size=len(df_noisy))
+        # AR(1) revision noise: v_t = ρ·v_{t-1} + ε_t
+        eps = np.random.normal(0, revision_sigma * np.sqrt(1 - rho_revision ** 2),
+                                size=len(df_noisy))
+        noise = np.empty(len(df_noisy))
+        noise[0] = eps[0]
+        for j in range(1, len(noise)):
+            noise[j] = rho_revision * noise[j - 1] + eps[j]
         df_noisy[target_col] = df_noisy[target_col] + noise
 
         for spec_name in ["M0", "M5"]:

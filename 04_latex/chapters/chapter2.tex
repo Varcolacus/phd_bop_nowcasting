@@ -123,7 +123,7 @@ Expanding-window evaluation with minimum training window of 96~months (8~years):
 
 \subsection{SHAP Decomposition}
 
-To interpret the full model's forecasts, we compute Shapley Additive Explanations \citep{lundberg2017unified} at each evaluation date.  We then aggregate absolute SHAP values by data category to quantify each category's contribution.  Formally, for category $\mathcal{C}_k$ and evaluation date $t$:
+To interpret the ML model's learned relationships, we train a single XGBoost model on the full available sample and compute Shapley Additive Explanations \citep{lundberg2017unified} for all observations.\footnote{Computing SHAP on each expanding-window model separately would be computationally prohibitive and would complicate cross-date aggregation, since feature orderings and tree structures differ across windows.  The full-sample SHAP decomposition should therefore be interpreted as a \emph{global} characterisation of feature importance, not as a date-by-date causal attribution.}  We then aggregate absolute SHAP values by data category to quantify each category's average contribution.  Formally, for category $\mathcal{C}_k$:
 \[
   S_k = \frac{1}{T_{\text{eval}}} \sum_{t} \sum_{j \in \mathcal{C}_k} |\phi_j^{(t)}|
 \]
