@@ -935,9 +935,8 @@ def clark_west_test(e1, e2, y_actual, y_pred_restricted):
     if n < 10:
         return np.nan, np.nan
 
-    # CW adjustment term
-    adj = (y_actual - y_pred_restricted) ** 2 - (e1 ** 2 - (e2 - e1) ** 2)
-    # Simplified: f_t = e2^2 - [e1^2 - (e2 - e1)^2]
+    # CW adjustment: f_t = e_restricted^2 - e_unrestricted^2 + (ŷ_restricted - ŷ_unrestricted)^2
+    # Here e1=unrestricted, e2=restricted, so (ŷ_restricted - ŷ_unrestricted) = e1 - e2
     f_t = e2 ** 2 - e1 ** 2 + (e2 - e1) ** 2
 
     f_mean = np.mean(f_t)
