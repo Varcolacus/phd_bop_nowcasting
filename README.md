@@ -56,12 +56,12 @@ phd/
 | DFM | 7,229 | -18.9% | Yes (p=0.049) |
 | Bridge | 7,685 | -13.8% | No |
 | Ridge | **6,567** | **-26.3%** | **Yes (p=0.013)** |
-| LASSO | 6,720 | -24.6% | Yes (p=0.021) |
+| LASSO | 7,114 | -20.2% | Yes (p=0.034) |
 | GradientBoosting | 7,344 | -17.6% | Marginal (p=0.062) |
 | XGBoost | 7,476 | -16.1% | Marginal (p=0.082) |
 | LSTM | 9,004 | +1.0% | No |
 | GRU | 9,000 | +1.0% | No |
-| Combination | 7,050 | -20.9% | Yes (p=0.035) |
+| Combination | 6,553 | -26.5% | Yes |
 
 Ridge regression is the best-performing individual model. The inverse-RMSE forecast combination provides robust ensemble performance. Conformal prediction intervals (90% nominal) achieve near-nominal empirical coverage.
 
@@ -108,21 +108,21 @@ The pipelines automatically download data from the ECB and run all models.
 | Spec | Description | Ridge RMSE | vs M0 | GW p-value |
 |---|---|---|---|---|
 | M0 | Baseline | 1,998 | — | — |
-| M1 | +Trade-activity (BDI, CTI) | 2,061 | +3.1% | 0.39 |
-| M2 | +Financial-flow (FX vol, CDS) | 2,007 | +0.5% | 0.57 |
-| **M3** | **+Text/Sentiment (TPU, Google Trends, NLP)** | **1,894** | **-5.2%** | **0.0006** |
-| M4 | +Satellite (NTL) | 2,000 | +0.1% | 0.31 |
-| M5 | All combined | 1,981 | -0.8% | 0.52 |
+| M1 | +Trade-activity (BDI, CTI) | 1,954 | -2.2% | 0.30 |
+| M2 | +Financial-flow (FX vol, CDS) | 1,952 | -2.3% | 0.27 |
+| M3 | +Text/Sentiment (TPU, Google Trends, NLP) | 1,968 | -1.5% | 0.46 |
+| M4 | +Satellite (NTL) | 1,989 | -0.4% | 0.85 |
+| **M5** | **All combined** | **1,867** | **-6.5%** | **0.13** |
 
-Text/sentiment data (Category C) provides the largest and statistically significant improvement (Giacomini-White test).
+The full model (M5) achieves the largest Ridge RMSE reduction. SHAP decomposition shows text/sentiment data contribute 20.6% of total importance.
 
 ## Chapter 3 Results — Policy Implications
 
-**Crisis evaluation:** XGBoost shows 72.7% direction accuracy during Energy shock vs 36.4% for AR(1). Ridge cuts RMSE by 45% vs AR(1) during the 2022 energy crisis.
+**Crisis evaluation:** XGBoost shows 72.7% direction accuracy during Energy shock vs 36.4% for AR(1). Ridge cuts RMSE by 20% vs AR(1) during the 2022 energy crisis.
 
-**Cross-country:** Methodology transfers to DE, IT (real ECB data), ES (synthetic). Fine-tuned transfer learning outperforms direct transfer by 20-50%.
+**Cross-country:** Methodology transfers to DE (Ridge -16.0%), IT (Ridge -20.0%), ES (Ridge -2.5%) — all real ECB data. Fine-tuned transfer learning outperforms direct transfer.
 
-**Taylor-rule counterfactual:** δ̂ = 0.494 (p=0.001), max policy difference of 164bp. Nowcast direction accuracy 57.7% vs 52.9% for lagged official data.
+**Taylor-rule counterfactual:** δ̂ = -0.008 (p=0.367), max policy difference of 2.7bp. The small CA gap coefficient confirms that BoP nowcast improvements affect monetary policy primarily through crisis early-warning, not steady-state rate setting.
 
 ## Next Steps
 

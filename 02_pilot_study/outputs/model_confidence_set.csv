@@ -2,6 +2,7 @@ model,in_mcs
 AR(1),True
 AR(4),True
 Ridge,True
+LASSO,True
 DFM,True
 Bridge,True
 GradientBoosting,True
