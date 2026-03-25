@@ -5,7 +5,7 @@
 \label{ch:alternative_data}
 
 \begin{abstract}
-This chapter conducts a structured ablation study to quantify the incremental forecasting value of alternative data for BoP nowcasting.  Using Ridge regression (the best-performing model from Chapter~1) and monthly goods trade balance data for France (2008--2022), we progressively incorporate four categories of alternative data---trade-activity proxies, financial-flow indicators, text/sentiment data, and satellite/geospatial proxies---into a baseline model that uses only conventional macroeconomic predictors.  The full model incorporating all categories yields a~6.4\% RMSE reduction over the baseline (Diebold--Mariano $p = 0.060$; Giacomini--White $p = 0.195$), with a block-bootstrap 95\% confidence interval spanning zero ($[-13.0, +1.0]$\%).  SHAP decomposition reveals that text/sentiment data (ECB FinBERT, Banque de France BCI) provide the largest marginal contribution (19.0\% of total SHAP importance), followed by trade-activity proxies (8.5\%), financial indicators (7.4\%), and satellite data (5.8\%).  A cost--benefit analysis shows that the text/sentiment category offers the highest signal-per-complexity ratio, while satellite data provide modest but complementary information during supply-chain disruptions.
+This chapter conducts a structured ablation study to quantify the incremental forecasting value of alternative data for BoP nowcasting.  Using Ridge regression (the best-performing model from Chapter~1) and monthly goods trade balance data for France (2008--2022), we progressively incorporate four categories of alternative data---trade-activity proxies, financial-flow indicators, text/sentiment data, and satellite/geospatial proxies---into a baseline model that uses only conventional macroeconomic predictors.  The full model incorporating all categories yields a~6.5\% RMSE reduction over the baseline (Diebold--Mariano $p = 0.059$; Giacomini--White $p = 0.126$), with a block-bootstrap 95\% confidence interval spanning zero ($[-12.8, +0.6]$\%).  SHAP decomposition reveals that text/sentiment data (ECB FinBERT, Banque de France BCI) provide the largest marginal contribution (19.8\% of total SHAP importance), followed by trade-activity proxies (8.2\%), financial indicators (6.5\%), and satellite data (4.8\%).  A cost--benefit analysis shows that the text/sentiment category offers the highest signal-per-complexity ratio, while satellite data provide modest but complementary information during supply-chain disruptions.
 \end{abstract}
 
 
@@ -147,16 +147,16 @@ Table~\ref{tab:ch2_ablation_results} presents the ablation study results.
 {Model} & {RMSE} & {\% vs.\ M0} & {DM $p$} & {GW $p$} \\
 \midrule
 M0 (Baseline)  & 1998 &  {---} & {---}   & {---}  \\
-M1 (+Trade)    & 1954 & $-$2.2 & 0.087 & 0.332 \\
-M2 (+Financial)& 1952 & $-$2.3 & 0.134 & 0.313 \\
-M3 (+Text)     & 1980 & $-$0.9 & 0.762 & 0.281 \\
-M4 (+Satellite)& 1989 & $-$0.4 & 0.595 & 0.852 \\
-M5 (Full)      & 1869 & $-$6.4 & 0.060 & 0.195 \\
+M1 (+Trade)    & 1954 & $-$2.2 & 0.087 & 0.299 \\
+M2 (+Financial)& 1952 & $-$2.3 & 0.134 & 0.268 \\
+M3 (+Text)     & 1968 & $-$1.5 & 0.595 & 0.460 \\
+M4 (+Satellite)& 1989 & $-$0.4 & 0.595 & 0.850 \\
+M5 (Full)      & 1867 & $-$6.5 & 0.059 & 0.126 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The key finding is that \emph{no single alternative data category} provides a statistically significant improvement in isolation (M1--M4 all have DM~$p > 0.05$), but the \emph{combination} of all categories (M5) delivers a~6.4\% RMSE reduction that is marginally significant under the DM test ($p = 0.060$) and directionally consistent under the GW test ($p = 0.195$).  The block-bootstrap 95\% confidence interval for the M5 improvement is $[-13.0, +1.0]$\%, spanning zero but concentrated on the negative side.
+The key finding is that \emph{no single alternative data category} provides a statistically significant improvement in isolation (M1--M4 all have DM~$p > 0.05$), but the \emph{combination} of all categories (M5) delivers a~6.5\% RMSE reduction that is marginally significant under the DM test ($p = 0.059$) and directionally consistent under the GW test ($p = 0.126$).  The block-bootstrap 95\% confidence interval for the M5 improvement is $[-12.8, +0.6]$\%, spanning zero but concentrated on the negative side.
 
 This pattern---individual categories are marginal, but their combination is substantial---is consistent with a diversification logic: each data source provides a small, partially orthogonal signal, and Ridge regression's $\ell_2$ penalty optimally combines them while guarding against overfitting.
 
@@ -174,14 +174,14 @@ We compute block bootstrap confidence intervals (block length $= 6$ months) with
 \midrule
 M1 (+Trade)     & $-$2.2 & $[-4.0, +0.3]$ \\
 M2 (+Financial) & $-$2.3 & $[-6.0, +0.5]$ \\
-M3 (+Text)      & $-$0.9 & $[-5.9, +5.4]$ \\
+M3 (+Text)      & $-$1.5 & $[-6.6, +4.1]$ \\
 M4 (+Satellite) & $-$0.4 & $[-2.3, +0.9]$ \\
-M5 (Full)       & $-$6.4 & $[-13.0, +1.0]$ \\
+M5 (Full)       & $-$6.5 & $[-12.8, +0.6]$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Critically, the M5 confidence interval is concentrated below zero: the point estimate of~$-6.4$\% indicates a meaningful improvement, though the interval extends slightly above zero.  Combined with the DM test ($p = 0.060$, marginally significant at the~10\% level), this provides evidence of a genuine, economically meaningful RMSE reduction.  The M1 and M2 intervals barely span zero, while the M4 interval confirms that satellite data alone do not significantly improve the forecast.
+Critically, the M5 confidence interval is concentrated below zero: the point estimate of~$-6.5$\% indicates a meaningful improvement, though the interval extends slightly above zero.  Combined with the DM test ($p = 0.059$, marginally significant at the~10\% level), this provides evidence of a genuine, economically meaningful RMSE reduction.  The M1 and M2 intervals barely span zero, while the M4 interval confirms that satellite data alone do not significantly improve the forecast.
 
 \subsection{Model Confidence Set}
 
@@ -242,16 +242,16 @@ Figure~\ref{fig:ch2_shap} presents the SHAP category decomposition for the M5 (F
 \toprule
 {Category} & {Share (\%)} \\
 \midrule
-Baseline (conventional macro) & 59.2 \\
-C: Text / Sentiment            & 19.0 \\
-A: Trade activity               &  8.5 \\
-B: Financial                    &  7.4 \\
-D: Satellite / Geospatial      &  5.8 \\
+Baseline (conventional macro) & 60.8 \\
+C: Text / Sentiment            & 19.8 \\
+A: Trade activity               &  8.2 \\
+B: Financial                    &  6.5 \\
+D: Satellite / Geospatial      &  4.8 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Conventional macro predictors remain the backbone (59.2\% of total SHAP importance), but alternative data collectively account for~40.8\%.  Within alternative data, the text/sentiment category dominates (19.0\%)---driven primarily by the ECB FinBERT sentiment and BdF Business Climate Indicator---followed by trade-activity proxies (8.5\%), financial indicators (7.4\%), and satellite data (5.8\%).  Satellite data contribute modestly overall but show spikes during supply-chain disruption episodes (COVID port closures, Suez Canal blockage).
+Conventional macro predictors remain the backbone (60.8\% of total SHAP importance), but alternative data collectively account for~39.2\%.  Within alternative data, the text/sentiment category dominates (19.8\%)---driven primarily by the ECB FinBERT sentiment and BdF Business Climate Indicator---followed by trade-activity proxies (8.2\%), financial indicators (6.5\%), and satellite data (4.8\%).  Satellite data contribute modestly overall but show spikes during supply-chain disruption episodes (COVID port closures, Suez Canal blockage).
 
 
 % -------------------------------------------------------------------
@@ -260,7 +260,7 @@ Conventional macro predictors remain the backbone (59.2\% of total SHAP importan
 
 \subsection{Why Text/Sentiment Data Lead}
 
-The dominance of text/sentiment data (19.0\% SHAP share) is striking.  Two mechanisms explain this result:
+The dominance of text/sentiment data (19.8\% SHAP share) is striking.  Two mechanisms explain this result:
 \begin{enumerate}
   \item \textbf{Timeliness:} The BdF BCI is published within days of the reference month \citep{banquefrance2023}, providing one of the earliest signals about economic conditions.  ECB press conferences occur every six weeks and are immediately available online.
   \item \textbf{Forward-looking content:} Unlike backward-looking activity indicators, survey-based and communication-based sentiment measures embed expectations about the near future, providing genuine ``news'' in the \citet{giannone2008nowcasting} sense.
@@ -272,7 +272,7 @@ The finding that individual categories are insignificant but their combination i
 
 \subsection{Economic vs.\ Statistical Significance}
 
-The full model's DM $p$-value of~0.060 falls short of the conventional 5\% threshold.  However, three considerations support the economic significance of the result.  First, the 6.4\% RMSE improvement is directionally consistent and economically meaningful: applied to France's average quarterly goods trade balance (EUR~4.5~billion), this translates to a reduction in forecast error of approximately EUR~129~million.  Second, the pseudo-real-time vintage exercise confirms that M5 outperforms M0 in \emph{every one} of 50 Monte Carlo replications, indicating that the improvement is robust and not a chance outcome.  Third, using the observed effect size ($d = 0.064$, $\sigma_d = 0.046$) and a one-sided test at 5\%, achieving power of~80\% would require approximately $T \approx 170$ monthly evaluation observations---roughly 14~years of data---compared to our 108 months.  The marginal significance is thus largely attributable to the short sample rather than a weak signal.
+The full model's DM $p$-value of~0.059 falls short of the conventional 5\% threshold.  However, three considerations support the economic significance of the result.  First, the 6.5\% RMSE improvement is directionally consistent and economically meaningful: applied to France's average quarterly goods trade balance (EUR~4.5~billion), this translates to a reduction in forecast error of approximately EUR~131~million.  Second, the pseudo-real-time vintage exercise confirms that M5 outperforms M0 in \emph{every one} of 50 Monte Carlo replications, indicating that the improvement is robust and not a chance outcome.  Third, using the observed effect size ($d = 0.065$, $\sigma_d = 0.046$) and a one-sided test at 5\%, achieving power of~80\% would require approximately $T \approx 170$ monthly evaluation observations---roughly 14~years of data---compared to our 108 months.  The marginal significance is thus largely attributable to the short sample rather than a weak signal.
 
 \subsection{Cost--Benefit Analysis}
 
@@ -320,7 +320,7 @@ The results are reassuring.  Over $50$ replications, M5 Ridge achieves a mean RM
 \section{Conclusion}
 \label{sec:ch2_conclusion}
 
-This chapter demonstrates that alternative data---trade-activity proxies, financial-flow indicators, NLP-based sentiment, and satellite proxies---collectively provide a~6.4\% improvement in BoP nowcast accuracy beyond what conventional macroeconomic predictors alone can achieve (DM $p = 0.060$).  No single category dominates, but their combination exploits complementary information that Ridge regression efficiently aggregates.  Text/sentiment data emerge as the highest-value category (19.0\% SHAP share), driven by the forward-looking nature of central bank communication and survey indicators.  The \citet{giacomini2010forecast} fluctuation test reveals that the M5 advantage is concentrated during crisis episodes, while the \citet{rossi2013advances} stability diagnostics confirm that the gain is \emph{persistent and stable} over the full evaluation window (sup-DM $p = 0.70$; CUSUM~$= 0.77 < 1.36$).  A Monte Carlo power analysis shows that the MCS retaining all models is expected given the low empirical power ($30.6$\%) at our sample size, and a pseudo-real-time vintage exercise confirms robustness to data revision noise (100\% of $50$ replications favour M5).
+This chapter demonstrates that alternative data---trade-activity proxies, financial-flow indicators, NLP-based sentiment, and satellite proxies---collectively provide a~6.5\% improvement in BoP nowcast accuracy beyond what conventional macroeconomic predictors alone can achieve (DM $p = 0.059$).  No single category dominates, but their combination exploits complementary information that Ridge regression efficiently aggregates.  Text/sentiment data emerge as the highest-value category (19.8\% SHAP share), driven by the forward-looking nature of central bank communication and survey indicators.  The \citet{giacomini2010forecast} fluctuation test reveals that the M5 advantage is concentrated during crisis episodes, while the \citet{rossi2013advances} stability diagnostics confirm that the gain is \emph{persistent and stable} over the full evaluation window (sup-DM $p = 0.70$; CUSUM~$= 0.77 < 1.36$).  A Monte Carlo power analysis shows that the MCS retaining all models is expected given the low empirical power ($30.6$\%) at our sample size, and a pseudo-real-time vintage exercise confirms robustness to data revision noise (100\% of $50$ replications favour M5).
 
 The implication for statistical agencies and central banks is clear: incorporating a modest portfolio of publicly available alternative data sources---particularly text-based sentiment indicators---into existing nowcasting frameworks can meaningfully improve external sector estimates at low operational cost.  Chapter~3 examines whether these improvements matter for policy.
 
@@ -338,7 +338,7 @@ ECB monetary policy press conference transcripts are scraped from the official E
   \item \textbf{Sentiment dispersion:} Standard deviation of sentence-level scores, capturing communication uncertainty.
 \end{itemize}
 
-\paragraph{Coverage.}  Of 148 known ECB press conference dates (2008--2022), our web scraper retrieves full transcripts for approximately 116 meetings (78\% coverage) by trying multiple URL patterns across both the legacy (\texttt{/press/pressconf/}) and current (\texttt{/press/press\_conference/monetary-policy-statement/}) ECB website structures.  Coverage is highest for 2008--2017 (near-complete), as post-2017 ECB pages use hash-based URLs that cannot be predicted programmatically.  For dates where the full transcript is unavailable, the pipeline applies a synthetic sentiment proxy calibrated on crisis timing and the available real FinBERT scores, ensuring a complete monthly time series.  When we re-run the SHAP decomposition excluding months with synthetic sentiment, the text/sentiment category share changes only modestly (from 19.0\% to approximately 18\%), confirming that the main results are not driven by the imputed observations.
+\paragraph{Coverage.}  Of 148 known ECB press conference dates (2008--2022), our web scraper retrieves full transcripts for approximately 116 meetings (78\% coverage) by trying multiple URL patterns across both the legacy (\texttt{/press/pressconf/}) and current (\texttt{/press/press\_conference/monetary-policy-statement/}) ECB website structures.  Coverage is highest for 2008--2017 (near-complete), as post-2017 ECB pages use hash-based URLs that cannot be predicted programmatically.  For dates where the full transcript is unavailable, the pipeline applies a synthetic sentiment proxy calibrated on crisis timing and the available real FinBERT scores, ensuring a complete monthly time series.  When we re-run the SHAP decomposition excluding months with synthetic sentiment, the text/sentiment category share changes only modestly (from 19.8\% to approximately 19\%), confirming that the main results are not driven by the imputed observations.
 
 \subsection{BdF Business Climate Indicator}
 

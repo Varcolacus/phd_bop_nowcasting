@@ -13,7 +13,7 @@ This chapter bridges the gap between statistical accuracy and policy relevance. 
 \section{Introduction}
 \label{sec:ch3_intro}
 
-Chapters~1 and~2 established two empirical results: Ridge regression reduces BoP nowcast RMSE by~26\% relative to an autoregressive benchmark (Chapter~1), and incorporating alternative data---particularly text/sentiment indicators---provides an additional~6.4\% improvement (Chapter~2).  But do these accuracy gains matter?
+Chapters~1 and~2 established two empirical results: Ridge regression reduces BoP nowcast RMSE by~26\% relative to an autoregressive benchmark (Chapter~1), and incorporating alternative data---particularly text/sentiment indicators---provides an additional~6.5\% improvement (Chapter~2).  But do these accuracy gains matter?
 
 Statistical accuracy is necessary but not sufficient for policy relevance.  An improvement that is concentrated in tranquil periods---when the current account is close to trend and policymakers have little reason to act---may have minimal practical value.  Conversely, improvements during crises or regime shifts, when timely information is scarce and the stakes are high, could be enormously valuable even if they are modest on average.
 
@@ -129,7 +129,7 @@ Table~\ref{tab:ch3_crosscountry} presents the Ridge RMSE improvement vs.\ AR(1) 
 \midrule
 France  & $-$20.0 & 0.002 & 0.360 \\
 Germany & $-$16.0 & $<$0.001 & 0.294 \\
-Italy   & $-$20.0 & 0.010 & 0.359 \\
+Italy   & $-$20.0 & 0.009 & 0.359 \\
 Spain   & $-$2.5 & 0.559 & 0.049 \\
 \bottomrule
 \end{tabular}
@@ -188,10 +188,10 @@ Table~\ref{tab:ch3_taylor} presents the OLS estimation of Equation~\eqref{eq:tay
 \toprule
 {Variable} & {Coefficient} & {SE} & {$p$-value} \\
 \midrule
-Constant              &  0.021 & 0.017 & 0.199 \\
-Inflation gap ($\beta_\pi$) &  0.040 & 0.015 & 0.007 \\
-Output gap ($\beta_y$)      &  0.000 & 0.000 & 0.948 \\
-CA gap ($\delta$)            & $-$0.008 & 0.009 & 0.370 \\
+Constant              &  0.021 & 0.017 & 0.198 \\
+Inflation gap ($\beta_\pi$) &  0.040 & 0.015 & 0.008 \\
+Output gap ($\beta_y$)      &  0.000 & 0.000 & 0.844 \\
+CA gap ($\delta$)            & $-$0.008 & 0.009 & 0.367 \\
 $i_{t-1}$ ($\rho$)           &  0.983 & 0.019 & $<$0.001 \\
 \bottomrule
 \end{tabular}
@@ -202,7 +202,7 @@ $i_{t-1}$ ($\rho$)           &  0.983 & 0.019 & $<$0.001 \\
 \end{minipage}
 \end{table}
 
-The inclusion of the lagged interest rate ($\hat{\rho} = 0.983$, $p < 0.001$) dramatically improves the model fit ($R^2$ rises from~0.19 to~0.99) and substantially reduces residual autocorrelation (Durbin--Watson increases from~0.17 to~0.60).  The remaining serial correlation (DW~$< 2$) does not invalidate inference because all standard errors are computed using the \citet{newey1987simple} HAC estimator with 12~lags, which is consistent under both heteroskedasticity and autocorrelation of unknown form.  The short-run CA gap coefficient ($\hat{\delta} = -0.008$) is small and statistically insignificant ($p = 0.370$).  However, the implied \emph{long-run} coefficient is $\hat{\delta}/(1-\hat{\rho}) = -0.008 / 0.017 = -0.46$, closely matching the naive OLS estimate.  This is the standard interest-rate-smoothing result: the ECB adjusts rates gradually, so the per-period response to any variable is small, while the cumulative (long-run) response is economically meaningful.
+The inclusion of the lagged interest rate ($\hat{\rho} = 0.983$, $p < 0.001$) dramatically improves the model fit ($R^2$ rises from~0.19 to~0.99) and substantially reduces residual autocorrelation (Durbin--Watson increases from~0.17 to~0.60).  The remaining serial correlation (DW~$< 2$) does not invalidate inference because all standard errors are computed using the \citet{newey1987simple} HAC estimator with 12~lags, which is consistent under both heteroskedasticity and autocorrelation of unknown form.  The short-run CA gap coefficient ($\hat{\delta} = -0.008$) is small and statistically insignificant ($p = 0.367$).  However, the implied \emph{long-run} coefficient is $\hat{\delta}/(1-\hat{\rho}) = -0.008 / 0.017 = -0.46$, closely matching the naive OLS estimate.  This is the standard interest-rate-smoothing result: the ECB adjusts rates gradually, so the per-period response to any variable is small, while the cumulative (long-run) response is economically meaningful.
 
 \paragraph{IV robustness check.}
 Because the lagged dependent variable $i_{t-1}$ may be endogenous (correlated with the error term through serial dependence), we re-estimate Equation~\eqref{eq:taylor} by two-stage least squares (2SLS), instrumenting $i_{t-1}$ with deeper lags $i_{t-2}$, $i_{t-3}$ and one-period lags of the gap variables ($\pi_{t-1}$, $\tilde{y}_{t-1}$, $\widehat{\text{CA}}_{t-1}$).  The first-stage $F$-statistic equals $10{,}457$, far exceeding the \citet{stockyogo2005} threshold of~10 for weak-instrument concerns.  The 2SLS point estimates are nearly identical to OLS: $\hat{\rho}_{\text{IV}} = 0.981$ (vs.\ 0.983), $\hat{\delta}_{\text{IV}} = -0.009$ (vs.\ $-0.008$), with a maximum absolute coefficient difference of~0.003.  The Sargan--\citet{hansen1982large} $J$-statistic rejects the overidentifying restrictions ($p < 0.01$), which is expected given the large sample ($T = 237$) and the well-documented tendency of $J$-tests to over-reject in highly persistent time-series settings.  This rejection implies that the instrument set may not be fully valid; accordingly, the IV estimates should be viewed as a sensitivity check rather than the preferred specification.  The OLS and Prais--Winsten GLS results---which do not rely on instrument validity---should be considered primary.  Overall, the close agreement between OLS and IV estimates confirms that endogeneity of the lagged rate is not a material concern for our conclusions.
@@ -221,7 +221,7 @@ We compute the implied policy rate under two scenarios:
   \item \textbf{Nowcast:} Using Ridge nowcast (available approximately 1~month before the official release).
 \end{enumerate}
 
-The maximum gap between the two implied rates---i.e., the largest policy-relevant information difference---reaches \textbf{2.6 basis points} at the monthly level.  Because of interest-rate smoothing ($\rho = 0.98$), the per-period policy rate difference is small: on average~0.1~bp, with the largest gaps occurring during COVID (1.7~bp) and GFC (1.2~bp).  However, these small per-period differences cumulate: a sustained information advantage of~0.1~bp per month compounds to approximately~6~bp per year in the policy rate trajectory, and larger effects during crises when the information gap is widest.  Figure~\ref{fig:ch3_taylor_rule} visualises the counterfactual implied rate paths.
+The maximum gap between the two implied rates---i.e., the largest policy-relevant information difference---reaches \textbf{2.7 basis points} at the monthly level.  Because of interest-rate smoothing ($\rho = 0.98$), the per-period policy rate difference is small: on average~0.5~bp, with the largest gaps occurring during COVID (1.7~bp) and GFC (1.2~bp).  However, these small per-period differences cumulate: a sustained information advantage of~0.5~bp per month compounds to approximately~6~bp per year in the policy rate trajectory, and larger effects during crises when the information gap is widest.  Figure~\ref{fig:ch3_taylor_rule} visualises the counterfactual implied rate paths.
 
 \begin{figure}[htbp]
 \centering
