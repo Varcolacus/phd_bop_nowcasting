@@ -21,7 +21,10 @@ Date: March 2026
 """
 
 import sys
+import logging
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 src_dir = Path(__file__).parent / "src"
 sys.path.insert(0, str(src_dir))
@@ -42,6 +45,7 @@ from models import (
     HAS_TORCH, HAS_SHAP,
     StandardScaler,
     model_confidence_set, clark_west_test, r2_oos, forecast_combination,
+    conformal_prediction_intervals,
 )
 from alternative_data import (
     download_all_alternative_data,
@@ -50,7 +54,9 @@ from alternative_data import (
 )
 from nlp_sentiment import run_nlp_pipeline
 
-warnings.filterwarnings("ignore")
+warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+warnings.filterwarnings("ignore", message=".*convergence.*")
 
 CH2_OUTPUT = OUTPUT_DIR / "chapter2"
 CH2_OUTPUT.mkdir(exist_ok=True)
@@ -579,6 +585,42 @@ def main():
         })
 
     # ---------------------------------------------------------------
+    # Phase 6b: Forecast Combination (per specification)
+    # ---------------------------------------------------------------
+    print("\n" + "=" * 70)
+    print("  FORECAST COMBINATION (inverse-RMSE weights)")
+    print("=" * 70)
+
+    combo_rows = []
+    for spec_name in ["M0", "M1", "M2", "M3", "M4", "M5"]:
+        if spec_name not in all_results:
+            continue
+        models = all_results[spec_name]
+        combo = forecast_combination(
+            models, method="inverse_rmse", exclude=["AR(1)"]
+        )
+        if combo.rmse is not None:
+            all_results[spec_name]["Combination"] = combo
+            vs_m0 = ""
+            m0_combo = all_results.get("M0", {}).get("Combination")
+            if m0_combo and m0_combo.rmse and spec_name != "M0":
+                pct = (combo.rmse - m0_combo.rmse) / m0_combo.rmse * 100
+                vs_m0 = f"  vs M0 {pct:+.1f}%"
+            print(f"  {spec_name} Combination  RMSE = {combo.rmse:,.0f}{vs_m0}")
+            combo_rows.append({
+                "specification": spec_name,
+                "combo_rmse": combo.rmse,
+                "combo_mae": combo.mae,
+                "combo_dir_acc": combo.direction_accuracy,
+            })
+
+    if combo_rows:
+        pd.DataFrame(combo_rows).to_csv(
+            CH2_OUTPUT / "forecast_combination.csv", index=False
+        )
+        print(f"\n  Saved forecast_combination.csv")
+
+    # ---------------------------------------------------------------
     # Phase 7: Statistical tests (DM + GW)
     # ---------------------------------------------------------------
     print(f"\n\n  STATISTICAL TESTS vs M0")
@@ -695,6 +737,33 @@ def main():
                 CH2_OUTPUT / "bootstrap_ci_ablation.csv", index=False
             )
             print(f"\n  Saved bootstrap_ci_ablation.csv")
+
+    # ---------------------------------------------------------------
+    # Phase 7b-ii: Conformal Prediction Intervals (per specification)
+    # ---------------------------------------------------------------
+    print("\n" + "=" * 70)
+    print("  CONFORMAL PREDICTION INTERVALS (90%)")
+    print("=" * 70)
+
+    all_conformal_rows = []
+    for spec_name, models in all_results.items():
+        if not models:
+            continue
+        cpi_df = conformal_prediction_intervals(models, alpha=0.10)
+        if cpi_df.empty:
+            continue
+        cpi_df.insert(0, "specification", spec_name)
+        all_conformal_rows.append(cpi_df)
+
+        for _, row in cpi_df.iterrows():
+            print(f"  {spec_name}/{row['model']:<12} "
+                  f"coverage={row['empirical_coverage']:.3f}  "
+                  f"width={row['mean_width']:,.0f}")
+
+    if all_conformal_rows:
+        conformal_all = pd.concat(all_conformal_rows, ignore_index=True)
+        conformal_all.to_csv(CH2_OUTPUT / "conformal_intervals.csv", index=False)
+        print(f"\n  Saved conformal_intervals.csv")
 
     # ---------------------------------------------------------------
     # Phase 7d: Model Confidence Set (Hansen, Lunde & Nason, 2011)
@@ -1209,4 +1278,9 @@ def main():
 
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s  %(levelname)-8s  %(message)s",
+        datefmt="%H:%M:%S",
+    )
     main()

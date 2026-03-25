@@ -47,10 +47,12 @@ from download_data import (
 from models import (
     ForecastResult, ar_forecast, ols_forecast, lasso_forecast, xgboost_forecast,
     diebold_mariano_test, block_bootstrap_rmse_ci, OUTPUT_DIR, StandardScaler,
-    clark_west_test, r2_oos,
+    clark_west_test, r2_oos, conformal_prediction_intervals,
 )
 
-warnings.filterwarnings("ignore")
+warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+warnings.filterwarnings("ignore", message=".*convergence.*")
 
 import matplotlib
 matplotlib.use("Agg")
@@ -1734,6 +1736,18 @@ def main():
         n_oos = len(res.predictions)
         print(f"  {mname:<12} RMSE = {rmse_str:<12} ({n_oos} OOS predictions)")
 
+    # ----- Conformal Prediction Intervals -----
+    print("\n" + "=" * 60)
+    print("  CONFORMAL PREDICTION INTERVALS (90%)")
+    print("=" * 60)
+    cpi_df = conformal_prediction_intervals(models_fr, alpha=0.10)
+    if not cpi_df.empty:
+        for _, row in cpi_df.iterrows():
+            print(f"  {row['model']:<12} coverage={row['empirical_coverage']:.3f}  "
+                  f"width={row['mean_width']:,.0f}")
+        cpi_df.to_csv(CH3_OUTPUT / "conformal_intervals.csv", index=False)
+        print(f"  Saved conformal_intervals.csv")
+
     # ----- Part A -----
     crisis_df = run_part_a(models_fr)
 
@@ -1767,4 +1781,9 @@ def main():
 
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s  %(levelname)-8s  %(message)s",
+        datefmt="%H:%M:%S",
+    )
     main()

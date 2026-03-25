@@ -19,6 +19,7 @@ Date: March 2026
 import os
 import json
 import logging
+import warnings
 import urllib3
 import requests
 import pandas as pd
@@ -279,6 +280,12 @@ def generate_synthetic_dataset():
     """
     print("\n  Generating synthetic dataset...")
     print("  [WARN] SYNTHETIC data -- for model testing only!\n")
+    warnings.warn(
+        "Using SYNTHETIC data — results are for model testing only, "
+        "not for publication.",
+        RuntimeWarning,
+        stacklevel=2,
+    )
 
     np.random.seed(42)
     dates = pd.date_range("2000-01-01", "2025-12-31", freq="QS")

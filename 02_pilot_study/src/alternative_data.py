@@ -65,6 +65,7 @@ def download_bdi_from_fred():
 def generate_synthetic_bdi(date_range):
     """Generate synthetic BDI with realistic properties."""
     print("  [BDI] Using synthetic fallback")
+    warnings.warn("BDI: using synthetic fallback data", RuntimeWarning, stacklevel=2)
     n = len(date_range)
     np.random.seed(42)
     # BDI typically 500-11000, mean ~1500, high volatility, mean-reverting
@@ -106,6 +107,7 @@ def download_container_throughput():
 
 def generate_synthetic_cti(date_range):
     """Generate synthetic Container Throughput Index."""
+    warnings.warn("CTI: using synthetic fallback data", RuntimeWarning, stacklevel=2)
     n = len(date_range)
     np.random.seed(43)
     # CTI indexed to 100 at 2008-01, trending upward, big COVID drop
@@ -170,6 +172,7 @@ def compute_fx_volatility():
 def generate_synthetic_fx_vol(date_range):
     """Generate synthetic FX volatility."""
     print("  [FX_VOL] Using synthetic fallback")
+    warnings.warn("FX_VOL: using synthetic fallback data", RuntimeWarning, stacklevel=2)
     n = len(date_range)
     np.random.seed(44)
     # Typical FX vol 5-15%, spikes during crises
@@ -274,6 +277,7 @@ def _download_cds_from_fred():
 
 def generate_synthetic_cds(date_range):
     """Generate synthetic France 5Y CDS spread."""
+    warnings.warn("CDS: using synthetic fallback data", RuntimeWarning, stacklevel=2)
     n = len(date_range)
     np.random.seed(45)
     # France CDS typically 10-200bp, spikes in GFC and euro crisis
@@ -332,6 +336,7 @@ def download_trade_policy_uncertainty():
 
 def generate_synthetic_tpu(date_range):
     """Generate synthetic Trade Policy Uncertainty index."""
+    warnings.warn("TPU: using synthetic fallback data", RuntimeWarning, stacklevel=2)
     n = len(date_range)
     np.random.seed(46)
     # TPU mean ~100, spikes during trade wars, Brexit, etc.
@@ -382,6 +387,7 @@ def download_google_trends():
 
 def generate_synthetic_gtrends(date_range):
     """Generate synthetic Google Trends-like indices."""
+    warnings.warn("Google Trends: using synthetic fallback data", RuntimeWarning, stacklevel=2)
     n = len(date_range)
     np.random.seed(47)
     export_idx = 50 + np.random.normal(0, 10, n).cumsum() * 0.1
@@ -429,6 +435,7 @@ def download_nighttime_lights():
 
 def generate_synthetic_ntl(date_range):
     """Generate synthetic nighttime lights index for France."""
+    warnings.warn("NTL: using synthetic fallback data", RuntimeWarning, stacklevel=2)
     n = len(date_range)
     np.random.seed(48)
     # NTL index: upward trend, seasonal, COVID dip

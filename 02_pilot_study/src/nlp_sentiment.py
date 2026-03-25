@@ -618,6 +618,10 @@ def generate_synthetic_sentiment(start_year=2008, end_year=2022):
     - Higher dispersion during crises
     """
     print("    [INFO] Generating synthetic ECB sentiment")
+    warnings.warn(
+        "ECB sentiment: using synthetic fallback data",
+        RuntimeWarning, stacklevel=2,
+    )
     date_range = pd.date_range(f"{start_year}-01-01", f"{end_year}-12-31", freq="MS")
     n = len(date_range)
     np.random.seed(49)

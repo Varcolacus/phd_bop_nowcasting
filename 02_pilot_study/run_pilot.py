@@ -16,7 +16,10 @@ Date: March 2026
 """
 
 import sys
+import logging
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 # Add src to path
 src_dir = Path(__file__).parent / "src"
@@ -571,4 +574,9 @@ def main():
 
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s  %(levelname)-8s  %(message)s",
+        datefmt="%H:%M:%S",
+    )
     main()

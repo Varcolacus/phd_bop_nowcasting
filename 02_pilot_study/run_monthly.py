@@ -18,7 +18,10 @@ Date: March 2026
 """
 
 import sys
+import logging
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 src_dir = Path(__file__).parent / "src"
 sys.path.insert(0, str(src_dir))
@@ -34,7 +37,7 @@ from download_data import (
     ecb_download_series, ecb_parse_csv,
 )
 from models import (
-    ForecastResult, ar_forecast, ols_forecast,
+    ForecastResult, ar_forecast, ols_forecast, lasso_forecast,
     gradient_boosting_forecast, xgboost_forecast, lstm_forecast,
     diebold_mariano_test, print_results, save_results,
     shap_feature_importance, OUTPUT_DIR,
@@ -42,7 +45,9 @@ from models import (
     StandardScaler,
 )
 
-warnings.filterwarnings("ignore")
+warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+warnings.filterwarnings("ignore", message=".*convergence.*")
 
 MONTHLY_OUTPUT = OUTPUT_DIR / "monthly"
 MONTHLY_OUTPUT.mkdir(exist_ok=True)
@@ -155,6 +160,7 @@ def monthly_expanding_window(df, target_col, feature_cols,
         "AR(1)":  ForecastResult("AR(1)"),
         "AR(12)": ForecastResult("AR(12)"),
         "Ridge":  ForecastResult("Ridge"),
+        "LASSO":  ForecastResult("LASSO"),
         "GradientBoosting": ForecastResult("GradientBoosting"),
         "XGBoost": ForecastResult("XGBoost"),
     }
@@ -190,6 +196,12 @@ def monthly_expanding_window(df, target_col, feature_cols,
         models["Ridge"].predictions.append(p)
         models["Ridge"].actuals.append(y_test)
         models["Ridge"].dates.append(test_date)
+
+        # LASSO
+        p = lasso_forecast(X_train_scaled, y_train, X_test_scaled)
+        models["LASSO"].predictions.append(p)
+        models["LASSO"].actuals.append(y_test)
+        models["LASSO"].dates.append(test_date)
 
         # GB
         p = gradient_boosting_forecast(X_train_scaled, y_train, X_test_scaled)
@@ -354,4 +366,9 @@ def main():
 
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s  %(levelname)-8s  %(message)s",
+        datefmt="%H:%M:%S",
+    )
     main()

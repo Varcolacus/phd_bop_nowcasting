@@ -86,6 +86,41 @@ def _ts_cv_score(X_train, y_train, model_cls, params, n_splits=3):
 
 
 # ---------------------------------------------------------------------------
+# Hyperparameter Grids (module-level constants)
+# ---------------------------------------------------------------------------
+
+GB_GRID = [
+    {"n_estimators": 100, "max_depth": 3, "learning_rate": 0.05,
+     "min_samples_leaf": 5, "random_state": 42},
+    {"n_estimators": 100, "max_depth": 3, "learning_rate": 0.1,
+     "min_samples_leaf": 5, "random_state": 42},
+    {"n_estimators": 100, "max_depth": 5, "learning_rate": 0.05,
+     "min_samples_leaf": 5, "random_state": 42},
+    {"n_estimators": 200, "max_depth": 3, "learning_rate": 0.05,
+     "min_samples_leaf": 5, "random_state": 42},
+]
+
+XGB_GRID = [
+    {"n_estimators": 100, "max_depth": 3, "learning_rate": 0.1,
+     "min_child_weight": 5, "colsample_bytree": 0.8,
+     "reg_alpha": 0.1, "reg_lambda": 1.0,
+     "random_state": 42, "verbosity": 0},
+    {"n_estimators": 100, "max_depth": 3, "learning_rate": 0.05,
+     "min_child_weight": 5, "colsample_bytree": 0.8,
+     "reg_alpha": 0.1, "reg_lambda": 1.0,
+     "random_state": 42, "verbosity": 0},
+    {"n_estimators": 100, "max_depth": 5, "learning_rate": 0.1,
+     "min_child_weight": 5, "colsample_bytree": 0.8,
+     "reg_alpha": 0.1, "reg_lambda": 1.0,
+     "random_state": 42, "verbosity": 0},
+    {"n_estimators": 100, "max_depth": 3, "learning_rate": 0.1,
+     "min_child_weight": 5, "colsample_bytree": 1.0,
+     "reg_alpha": 0.0, "reg_lambda": 0.0,
+     "random_state": 42, "verbosity": 0},
+]
+
+
+# ---------------------------------------------------------------------------
 # Bai-Ng (2002) IC_p2 Factor Selection
 # ---------------------------------------------------------------------------
 
@@ -277,20 +312,10 @@ def gradient_boosting_forecast(X_train, y_train, X_test_row):
     if len(y_train) < 10:
         return np.nan
 
-    _GB_GRID = [
-        {"n_estimators": 100, "max_depth": 3, "learning_rate": 0.05,
-         "min_samples_leaf": 5, "random_state": 42},
-        {"n_estimators": 100, "max_depth": 3, "learning_rate": 0.1,
-         "min_samples_leaf": 5, "random_state": 42},
-        {"n_estimators": 100, "max_depth": 5, "learning_rate": 0.05,
-         "min_samples_leaf": 5, "random_state": 42},
-        {"n_estimators": 200, "max_depth": 3, "learning_rate": 0.05,
-         "min_samples_leaf": 5, "random_state": 42},
-    ]
-    best_params = _GB_GRID[0]
+    best_params = GB_GRID[0]
     if len(y_train) >= 20:
         best_score = float('inf')
-        for params in _GB_GRID:
+        for params in GB_GRID:
             score = _ts_cv_score(X_train, y_train,
                                 GradientBoostingRegressor, params)
             if score < best_score:
@@ -313,28 +338,10 @@ def xgboost_forecast(X_train, y_train, X_test_row):
     if len(y_train) < 10:
         return np.nan
 
-    _XGB_GRID = [
-        {"n_estimators": 100, "max_depth": 3, "learning_rate": 0.1,
-         "min_child_weight": 5, "colsample_bytree": 0.8,
-         "reg_alpha": 0.1, "reg_lambda": 1.0,
-         "random_state": 42, "verbosity": 0},
-        {"n_estimators": 100, "max_depth": 3, "learning_rate": 0.05,
-         "min_child_weight": 5, "colsample_bytree": 0.8,
-         "reg_alpha": 0.1, "reg_lambda": 1.0,
-         "random_state": 42, "verbosity": 0},
-        {"n_estimators": 100, "max_depth": 5, "learning_rate": 0.1,
-         "min_child_weight": 5, "colsample_bytree": 0.8,
-         "reg_alpha": 0.1, "reg_lambda": 1.0,
-         "random_state": 42, "verbosity": 0},
-        {"n_estimators": 100, "max_depth": 3, "learning_rate": 0.1,
-         "min_child_weight": 5, "colsample_bytree": 1.0,
-         "reg_alpha": 0.0, "reg_lambda": 0.0,
-         "random_state": 42, "verbosity": 0},
-    ]
-    best_params = _XGB_GRID[0]
+    best_params = XGB_GRID[0]
     if len(y_train) >= 20:
         best_score = float('inf')
-        for params in _XGB_GRID:
+        for params in XGB_GRID:
             score = _ts_cv_score(X_train, y_train,
                                 xgb.XGBRegressor, params)
             if score < best_score:
@@ -808,10 +815,10 @@ def expanding_window_evaluation(df, target_col, feature_cols,
 
 def diebold_mariano_test(e1, e2, h=1):
     """
-    Diebold-Mariano test for equal predictive accuracy.
+    Diebold-Mariano test for equal predictive accuracy (two-sided).
 
     H0: Both forecasts have equal accuracy
-    H1: Forecast 1 is more accurate than Forecast 2
+    H1: The two forecasts have different accuracy
 
     Parameters:
     -----------
@@ -821,7 +828,7 @@ def diebold_mariano_test(e1, e2, h=1):
 
     Returns:
     --------
-    DM statistic and p-value
+    DM statistic and two-sided p-value
     """
     from scipy import stats
 
