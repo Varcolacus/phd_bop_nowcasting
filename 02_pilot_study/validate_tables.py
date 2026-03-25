@@ -128,25 +128,37 @@ def validate_ch2_ablation():
         return
 
     df = pd.read_csv(csv_path)
-    rows = extract_latex_table(LATEX_DIR / "chapter2.tex", "tab:ch2_ablation")
+    rows = extract_latex_table(LATEX_DIR / "chapter2.tex", "tab:ch2_ablation_results")
 
     if not rows:
-        print("  [SKIP] Could not parse tab:ch2_ablation from LaTeX")
+        print("  [SKIP] Could not parse tab:ch2_ablation_results from LaTeX")
         return
 
+    # LaTeX rows have format: "M0 (Baseline)" | RMSE | % vs M0 | DM p | GW p
+    # Extract specification prefix (e.g. "M0") from the LaTeX model name
     for row_cells in rows:
         if len(row_cells) < 3:
             continue
-        spec = row_cells[0].strip()
+        tex_name = row_cells[0].strip()
+        # Extract spec like "M0" from "M0 (Baseline)"
+        spec_match = re.match(r"(M\d)", tex_name)
+        if not spec_match:
+            continue
+        spec = spec_match.group(1)
         csv_row = df[df["specification"] == spec]
         if csv_row.empty:
             continue
-        # Compare Ridge RMSE (column 2 in LaTeX)
-        if "ridge_rmse" in csv_row.columns:
-            csv_val = csv_row["ridge_rmse"].values[0]
-            latex_val = parse_latex_number(row_cells[1])
-            check("ch2_ablation", csv_val, latex_val, TOLERANCE_ABS,
-                  f"{spec} Ridge RMSE")
+        # Compare Ridge RMSE (column 1 in LaTeX)
+        csv_val = csv_row["ridge_rmse"].values[0]
+        latex_val = parse_latex_number(row_cells[1])
+        check("ch2_ablation", csv_val, latex_val, TOLERANCE_ABS,
+              f"{spec} Ridge RMSE")
+        # Compare % vs M0 (column 2 in LaTeX)
+        if spec != "M0":
+            csv_pct = csv_row["ridge_vs_m0_pct"].values[0]
+            latex_pct = parse_latex_number(row_cells[2])
+            check("ch2_ablation", csv_pct, latex_pct, TOLERANCE_PCT,
+                  f"{spec} % vs M0")
 
     print(f"  [OK] ch2_ablation checked ({len(rows)} rows)")
 
@@ -159,56 +171,90 @@ def validate_ch3_crisis():
         return
 
     df = pd.read_csv(csv_path)
-    rows = extract_latex_table(LATEX_DIR / "chapter3.tex", "tab:ch3_crisis")
+    rows = extract_latex_table(LATEX_DIR / "chapter3.tex", "tab:ch3_crisis_results")
 
     if not rows:
-        print("  [SKIP] Could not parse tab:ch3_crisis from LaTeX")
+        print("  [SKIP] Could not parse tab:ch3_crisis_results from LaTeX")
         return
 
+    # LaTeX layout: Model | GFC RMSE | GFC % | COVID RMSE | COVID % | Energy RMSE | Energy %
+    episodes = ["GFC", "COVID", "Energy"]
     for row_cells in rows:
-        if len(row_cells) < 3:
+        if len(row_cells) < 7:
             continue
-        episode = row_cells[0].strip()
-        model = row_cells[1].strip()
-        csv_row = df[(df["episode"] == episode) & (df["model"] == model)]
-        if csv_row.empty:
+        model = row_cells[0].strip()
+        # Skip LASSO row (populated at runtime placeholder)
+        if "emph" in row_cells[1] or "populated" in row_cells[1]:
             continue
-        csv_rmse = csv_row["rmse"].values[0]
-        latex_rmse = parse_latex_number(row_cells[2])
-        check("ch3_crisis", csv_rmse, latex_rmse, TOLERANCE_ABS,
-              f"{episode}/{model} RMSE")
+        for i, episode in enumerate(episodes):
+            csv_row = df[(df["episode"] == episode) & (df["model"] == model)]
+            if csv_row.empty:
+                continue
+            # RMSE is at column 1+2*i, % is at column 2+2*i
+            csv_rmse = csv_row["rmse"].values[0]
+            latex_rmse = parse_latex_number(row_cells[1 + 2 * i])
+            check("ch3_crisis", csv_rmse, latex_rmse, TOLERANCE_ABS,
+                  f"{episode}/{model} RMSE")
+            if model != "AR(1)":
+                csv_pct = csv_row["vs_ar1_pct"].values[0]
+                latex_pct = parse_latex_number(row_cells[2 + 2 * i])
+                check("ch3_crisis", csv_pct, latex_pct, TOLERANCE_PCT,
+                      f"{episode}/{model} %")
 
     print(f"  [OK] ch3_crisis checked ({len(rows)} rows)")
 
 
 def validate_ch3_cross_country():
     """Validate Chapter 3 cross-country table."""
-    csv_path = OUTPUT_DIR / "chapter3" / "cross_country_results.csv"
-    if not csv_path.exists():
-        print(f"  [SKIP] {csv_path.name} not found")
+    csv_results = OUTPUT_DIR / "chapter3" / "cross_country_results.csv"
+    csv_dm = OUTPUT_DIR / "chapter3" / "cross_country_dm_tests.csv"
+    if not csv_results.exists():
+        print(f"  [SKIP] {csv_results.name} not found")
         return
 
-    df = pd.read_csv(csv_path)
-    rows = extract_latex_table(LATEX_DIR / "chapter3.tex", "tab:ch3_xcountry")
+    df_results = pd.read_csv(csv_results)
+    df_results = df_results[
+        (df_results["strategy"] == "country-specific") &
+        (df_results["model"] == "Ridge")
+    ]
+    rows = extract_latex_table(LATEX_DIR / "chapter3.tex", "tab:ch3_crosscountry")
 
     if not rows:
-        print("  [SKIP] Could not parse tab:ch3_xcountry from LaTeX")
+        print("  [SKIP] Could not parse tab:ch3_crosscountry from LaTeX")
         return
 
-    for row_cells in rows:
-        if len(row_cells) < 3:
-            continue
-        country = row_cells[0].strip()
-        model = row_cells[1].strip()
-        csv_row = df[(df["country"] == country) & (df["model"] == model)]
-        if csv_row.empty:
-            continue
-        csv_rmse = csv_row["rmse"].values[0]
-        latex_rmse = parse_latex_number(row_cells[2])
-        check("ch3_xcountry", csv_rmse, latex_rmse, TOLERANCE_ABS,
-              f"{country}/{model} RMSE")
+    # LaTeX layout: Country | % vs AR(1) | DM p-value | R2_OOS
+    country_map = {"France": "FR", "Germany": "DE", "Italy": "IT", "Spain": "ES"}
+    df_dm = pd.read_csv(csv_dm) if csv_dm.exists() else None
 
-    print(f"  [OK] ch3_xcountry checked ({len(rows)} rows)")
+    for row_cells in rows:
+        if len(row_cells) < 4:
+            continue
+        country_name = row_cells[0].strip()
+        code = country_map.get(country_name)
+        if code is None:
+            continue
+        # % vs AR(1)
+        csv_row = df_results[df_results["country"] == code]
+        if not csv_row.empty:
+            csv_pct = csv_row["vs_ar1_pct"].values[0]
+            latex_pct = parse_latex_number(row_cells[1])
+            check("ch3_crosscountry", csv_pct, latex_pct, TOLERANCE_PCT,
+                  f"{country_name} % vs AR(1)")
+        # DM p-value and R2_OOS from DM tests CSV
+        if df_dm is not None:
+            dm_row = df_dm[df_dm["country"] == code]
+            if not dm_row.empty:
+                csv_dm_p = dm_row["dm_p"].values[0]
+                latex_dm_p = parse_latex_number(row_cells[2])
+                check("ch3_crosscountry", csv_dm_p, latex_dm_p, 0.01,
+                      f"{country_name} DM p")
+                csv_r2 = dm_row["r2_oos"].values[0]
+                latex_r2 = parse_latex_number(row_cells[3])
+                check("ch3_crosscountry", csv_r2, latex_r2, 0.01,
+                      f"{country_name} R2_OOS")
+
+    print(f"  [OK] ch3_crosscountry checked ({len(rows)} rows)")
 
 
 def main():
